@@ -20,6 +20,8 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState("");
   const [authMode, setAuthMode] = useState("login");
+  const [loginRole, setLoginRole] = useState("Student");
+  const [otpSent, setOtpSent] = useState(false);
 
   const user = auth?.user;
 
@@ -134,6 +136,12 @@ function App() {
             password: values.password,
           }),
         });
+
+        const expectedRole = loginRole === "Storekeeper" ? "Storekeeper" : "Student";
+        if (data.user.role !== expectedRole) {
+          throw new Error(`Please login using a ${expectedRole} account.`);
+        }
+
         const nextAuth = {
           accessToken: data.accessToken,
           refreshToken: data.refreshToken,
@@ -143,6 +151,54 @@ function App() {
         setAuth(nextAuth);
         showNotice("Logged in successfully.");
       }
+    } catch (error) {
+      showNotice(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const sendPasswordResetOtp = async (event) => {
+    event.preventDefault();
+    setLoading(true);
+
+    const form = new FormData(event.currentTarget);
+    const email = form.get("email");
+
+    try {
+      await api.request("/user/forgot-password", {
+        method: "POST",
+        body: JSON.stringify({ email }),
+      });
+      setOtpSent(true);
+      showNotice("OTP sent to your email. Enter the code and new password below.");
+    } catch (error) {
+      showNotice(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetPassword = async (event) => {
+    event.preventDefault();
+    setLoading(true);
+
+    const form = new FormData(event.currentTarget);
+    const values = Object.fromEntries(form.entries());
+
+    try {
+      await api.request("/user/reset-password", {
+        method: "POST",
+        body: JSON.stringify({
+          email: values.email,
+          otp: values.otp,
+          newPassword: values.newPassword,
+        }),
+      });
+      event.currentTarget.reset();
+      setAuthMode("login");
+      setOtpSent(false);
+      showNotice("Password updated. Please log in with your new password.");
     } catch (error) {
       showNotice(error.message);
     } finally {
@@ -167,6 +223,19 @@ function App() {
     const form = new FormData(event.currentTarget);
     const itemId = form.get("itemId");
     const quantity = Number(form.get("quantity"));
+
+    const item = items.find((it) => it._id === itemId);
+    if (!item) {
+      return showNotice("Please select an item before submitting.");
+    }
+
+    if (item.totalQuantity <= 0) {
+      return showNotice("Selected item is out of stock.");
+    }
+
+    if (quantity > item.totalQuantity) {
+      return showNotice(`Only ${item.totalQuantity} ${item.unitType} available for ${item.name}.`);
+    }
 
     try {
       await api.request("/request/request-item", {
@@ -275,32 +344,86 @@ function App() {
             <p className="lead">
               Manage lab inventory, student requests, stock issue, and returns from one clean workspace.
             </p>
+            <div className="lab-equipment">
+              <div className="test-tube"></div>
+              <div className="petri-dish">
+                <div className="petri-content"></div>
+              </div>
+              <div className="microscope"></div>
+            </div>
           </div>
 
-          <form className="form-card" onSubmit={handleAuth}>
+          <form
+            className="form-card"
+            onSubmit={authMode === "forgot" ? (otpSent ? resetPassword : sendPasswordResetOtp) : handleAuth}
+          >
             <div className="segmented">
-              <button type="button" className={authMode === "login" ? "active" : ""} onClick={() => setAuthMode("login")}>
+              <button type="button" className={authMode === "login" ? "active" : ""} onClick={() => {
+                setAuthMode("login");
+                setOtpSent(false);
+              }}>
                 Login
               </button>
-              <button type="button" className={authMode === "register" ? "active" : ""} onClick={() => setAuthMode("register")}>
+              <button type="button" className={authMode === "register" ? "active" : ""} onClick={() => {
+                setAuthMode("register");
+                setOtpSent(false);
+              }}>
                 Register
+              </button>
+              <button type="button" className={authMode === "forgot" ? "active" : ""} onClick={() => {
+                setAuthMode("forgot");
+                setOtpSent(false);
+              }}>
+                Forgot Password
               </button>
             </div>
 
-            {authMode === "register" && (
+            {authMode === "login" && (
+              <div className="segmented" style={{ marginTop: "1rem" }}>
+                <button
+                  type="button"
+                  className={loginRole === "Student" ? "active" : ""}
+                  onClick={() => setLoginRole("Student")}
+                >
+                  Student
+                </button>
+                <button
+                  type="button"
+                  className={loginRole === "Storekeeper" ? "active" : ""}
+                  onClick={() => setLoginRole("Storekeeper")}
+                >
+                  Storekeeper / Lab Assistant
+                </button>
+              </div>
+            )}
+
+            {authMode !== "forgot" ? (
               <>
-                <Field name="fullName" label="Full name" required />
-                <Field name="registrationNo" label="Registration number" required />
-                <Field name="year" label="Year" type="number" min="1" max="6" required />
+                <Field name="email" label="Email" type="email" required={authMode === "register"} />
+                <Field name="password" label="Password" type="password" required />
+              </>
+            ) : (
+              <>
+                <Field name="email" label="Email" type="email" required />
+                {otpSent && (
+                  <>
+                    <Field name="otp" label="OTP code" required />
+                    <Field name="newPassword" label="New password" type="password" required />
+                  </>
+                )}
               </>
             )}
 
-            <Field name="userName" label="Username" required={authMode === "register"} />
-            <Field name="email" label="Email" type="email" required={authMode === "register"} />
-            <Field name="password" label="Password" type="password" required />
-
             <button className="primary" disabled={loading}>
-              {loading ? "Please wait..." : authMode === "login" ? "Login" : "Create student account"}
+              {loading
+                ? "Please wait..."
+                : authMode === "login"
+                ? "Login"
+                : authMode === "register"
+                ? "Create student account"
+                : otpSent
+                ? "Reset password"
+                : "Send OTP"}
             </button>
           </form>
         </section>
@@ -319,6 +442,7 @@ function App() {
         <div className="user-card">
           <strong>{user?.fullName}</strong>
           <span>{user?.email}</span>
+          {user?.role === "Storekeeper" && <span>Lab Assistant: Rakesh Tiwari</span>}
         </div>
         <button className="ghost" onClick={refreshDashboard} disabled={loading}>
           Refresh
@@ -330,9 +454,16 @@ function App() {
 
       <section className="workspace">
         <header className="topbar">
-          <div>
+          <div className="topbar-copy">
             <p className="eyebrow">Live Inventory</p>
             <h1>Department Store Dashboard</h1>
+            <p className="topbar-subtitle">Track stock, manage requests, and keep lab supplies flowing with an intelligent view.</p>
+            <div className="lab-equipment" style={{ margin: "20px 0 0 0", gap: "15px" }}>
+              <div className="test-tube"></div>
+              <div className="petri-dish">
+                <div className="petri-content"></div>
+              </div>
+            </div>
           </div>
           <Stats items={items} requests={requests} />
         </header>
@@ -362,26 +493,34 @@ function App() {
 }
 
 function StudentDashboard({ items, requests, onRequestItem }) {
+  const availableItems = items.filter((item) => item.totalQuantity > 0);
+
   return (
     <div className="grid two">
       <section>
         <SectionTitle title="Available Items" caption="Request chemicals, glassware, consumables, and equipment." />
-        <InventoryTable items={items} />
+        <InventoryTable items={items} showBatches />
       </section>
 
       <section className="stack">
         <form className="form-card compact" onSubmit={onRequestItem}>
           <h3>Request Item</h3>
           <Select name="itemId" label="Item" required>
-            <option value="">Select item</option>
+            <option value="">{items.length ? "Select item" : "No items available"}</option>
             {items.map((item) => (
-              <option key={item._id} value={item._id}>
+              <option key={item._id} value={item._id} disabled={item.totalQuantity <= 0}>
                 {item.name} ({item.totalQuantity} {item.unitType})
+                {item.totalQuantity <= 0 ? " - Out of stock" : ""}
               </option>
             ))}
           </Select>
+          {!items.length ? (
+            <p className="hint">No inventory available yet. Add stock from the storekeeper portal.</p>
+          ) : null}
           <Field name="quantity" label="Quantity" type="number" min="1" required />
-          <button className="primary">Submit request</button>
+          <button className="primary" disabled={!availableItems.length}>
+            Submit request
+          </button>
         </form>
 
         <RequestList requests={requests} role="Student" />
@@ -571,12 +710,26 @@ function RequestList({ requests, role, onRequestAction }) {
 function Stats({ items, requests }) {
   const totalStock = items.reduce((sum, item) => sum + Number(item.totalQuantity || 0), 0);
   const pending = requests.filter((request) => request.status === "PENDING").length;
+  const lowStock = items.filter((item) => item.totalQuantity <= item.minThreshold).length;
 
   return (
-    <div className="stats">
-      <span><strong>{items.length}</strong> items</span>
-      <span><strong>{totalStock}</strong> units</span>
-      <span><strong>{pending}</strong> pending</span>
+    <div className="stats card-grid">
+      <div className="stat-card">
+        <span className="stat-value">{items.length}</span>
+        <span className="stat-label">Inventory items</span>
+      </div>
+      <div className="stat-card">
+        <span className="stat-value">{totalStock}</span>
+        <span className="stat-label">Total units in stock</span>
+      </div>
+      <div className={lowStock ? "stat-card warn-card" : "stat-card"}>
+        <span className="stat-value">{lowStock}</span>
+        <span className="stat-label">Low-stock items</span>
+      </div>
+      <div className="stat-card secondary-card">
+        <span className="stat-value">{pending}</span>
+        <span className="stat-label">Pending requests</span>
+      </div>
     </div>
   );
 }

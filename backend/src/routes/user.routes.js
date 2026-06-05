@@ -5,14 +5,17 @@ import { registerUser,
     logoutUser,
     refreshAccessToken,
     changePassword,
-    updateUserProfile
+    updateUserProfile,
+    forgotPassword,
+    resetPassword
 } from "../controllers/user.controller.js";
 
 const router = Router();
 
 router.post("/register", registerUser);
 router.post("/login", loginUser);
-
+router.post("/forgot-password", forgotPassword);
+router.post("/reset-password", resetPassword);
 
 router.post("/logout", verifyJWT, logoutUser);
 router.patch("/change-password", verifyJWT, changePassword);

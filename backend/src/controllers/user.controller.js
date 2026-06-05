@@ -1,8 +1,10 @@
 import asyncHandler from "../utils/asyncHandler.js";
+import bcrypt from "bcrypt";
 import jsonwebtoken from "jsonwebtoken";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { User } from "../models/user.model.js";
+import { sendEmail } from "../utils/mailer.js";
 
 const generateAccessAndRefreshToken = async (userId) => {
     try {
@@ -195,6 +197,77 @@ const changePassword = asyncHandler(async (req, res) => {
     );
 });
 
+const forgotPassword = asyncHandler(async (req, res) => {
+    const { email } = req.body;
+
+    if (!email) {
+        throw new ApiError(400, "Email is required");
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase() });
+
+    if (!user) {
+        throw new ApiError(404, "User not found");
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    user.passwordResetOtp = await bcrypt.hash(otp, 11);
+    user.passwordResetOtpExpires = Date.now() + 15 * 60 * 1000;
+    await user.save({ validateBeforeSave: false });
+
+    const subject = "BioStoreX password reset OTP";
+    const text = `Your BioStoreX OTP is ${otp}. It expires in 15 minutes.`;
+    const html = `<p>Your BioStoreX password reset code is <strong>${otp}</strong>.</p><p>It expires in 15 minutes.</p>`;
+
+    await sendEmail({ to: user.email, subject, text, html });
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            {},
+            `OTP sent to ${user.email}. Check your email to continue.`
+        )
+    );
+});
+
+const resetPassword = asyncHandler(async (req, res) => {
+    const { email, otp, newPassword } = req.body;
+
+    if (!email || !otp || !newPassword) {
+        throw new ApiError(400, "Email, OTP, and new password are required");
+    }
+
+    const user = await User.findOne({ email: email.toLowerCase() });
+    if (!user || !user.passwordResetOtp || !user.passwordResetOtpExpires) {
+        throw new ApiError(400, "Invalid or expired OTP");
+    }
+
+    if (user.passwordResetOtpExpires < Date.now()) {
+        user.passwordResetOtp = undefined;
+        user.passwordResetOtpExpires = undefined;
+        await user.save({ validateBeforeSave: false });
+        throw new ApiError(400, "OTP has expired. Please request a new one.");
+    }
+
+    const isOtpValid = await bcrypt.compare(otp, user.passwordResetOtp);
+    if (!isOtpValid) {
+        throw new ApiError(400, "Invalid OTP");
+    }
+
+    user.password = newPassword;
+    user.passwordResetOtp = undefined;
+    user.passwordResetOtpExpires = undefined;
+    await user.save();
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            {},
+            "Password updated successfully"
+        )
+    );
+});
+
 const updateUserProfile = asyncHandler(async (req, res) => {
     const { userName, fullName } = req.body;
 
@@ -235,5 +308,7 @@ export { registerUser,
     logoutUser,
     refreshAccessToken,
     changePassword,
-    updateUserProfile
+    updateUserProfile,
+    forgotPassword,
+    resetPassword
 };

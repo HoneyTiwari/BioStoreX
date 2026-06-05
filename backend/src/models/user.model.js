@@ -40,7 +40,9 @@ const userSchema = new mongoose.Schema({
         year: { type: Number, min: 1, max: 6 }
     },
 
-    refreshToken: { type: String }
+    refreshToken: { type: String },
+    passwordResetOtp: { type: String },
+    passwordResetOtpExpires: { type: Date }
 
 }, { timestamps: true });
 
