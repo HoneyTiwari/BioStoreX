@@ -1,158 +1,178 @@
-# 🧬 BioStoreX – Biotechnology Department Store Management System
+# BioStoreX
 
-BioStoreX is a full-stack **MERN** web application for managing **Biotechnology Department lab inventory**, replacing outdated paper-based systems with a clean, digital workflow.  
-It improves transparency, prevents stock mismanagement, and simplifies the process for **students, storekeepers, and administrators**.
+BioStoreX is a MERN biotechnology department store management platform for managing lab inventory, student requests, stock movement, expiry risk, reporting, and AI-assisted inventory decisions.
 
----
+## Features
 
-## 👥 Team Members
+- Student registration, login, and request tracking
+- Storekeeper inventory management with batch-wise stock
+- Admin user management and student approval
+- Request lifecycle: pending, approved, declined, issued, returned
+- Low-stock and expiry-risk tracking
+- AI Dashboard with inventory insights, stock prediction, expiry analysis, and chatbot
+- Reports for inventory, low stock, expiry, issued/returned items, and monthly usage
+- Activity logs for stock movement, item issue/return, and admin audit actions
+- Responsive SaaS-style frontend with modern cards, tables, filters, pagination, and toasts
 
-| Name              | Registration Number |
-|-------------------|---------------------|
-| **Anmol Kumar**   | 20240007            | 
-| **Honey Tiwari**  | 20240029            |
+## Tech Stack
 
----
+Frontend:
+- React
+- Vite
+- Tailwind CSS
+- Framer Motion
+- Axios
+- React Router
+- Lucide Icons
 
-## 🚀 Features Overview
+Backend:
+- Node.js
+- Express
+- MongoDB
+- Mongoose
+- JWT authentication
+- Nodemailer
+- Cloudinary
+- Groq/OpenAI-compatible AI APIs
 
-### 👨‍🎓 Student Module
-- Register & login
-- View all available items
-- Submit item requests
-- Prevent duplicate pending requests
-- Track request status: **PENDING → APPROVED → ISSUED → RETURNED** or **PENDING → DECLINED**
+## Setup
 
----
-
-### 🧑‍🔧 Storekeeper Module
-- Add new items with:
-  - Name, category, unit type
-  - Multiple batches (batchNo, expiryDate)
-  - Auto SKU generation
-- Add or remove stock (**StockLog** entries)
-- Approve / decline student requests
-- Issue items:
-  - Auto-reduces stock from batches (FIFO)
-  - Creates **IssueLog** entry
-- Accept returned items:
-  - Restores quantity to stock
-  - Adds negative quantity entry in **IssueLog**
-- View all student requests
-
----
-
-### 🛠 Admin Module
-- Add storekeepers
-- Blacklist / unblacklist users
-- Manage authentication security
-- View complete user and request history
-
----
-
-## 📦 Inventory Management
-
-### Batch-wise stock structure
-Each item contains:
-- name  
-- category  
-- unitType  
-- image  
-- **batches: [ { batchNo, quantity, expiryDate } ]**  
-- totalQuantity  
-- SKU  
-
-### FIFO Stock Deduction
-- On issuing items, quantity is deducted from the oldest batch first.
-
-### Return System
-- Restores quantity to stock
-- Only affects **Item model**
-- Adds a return entry in **IssueLog**
-
----
-
-### Logging System
-
-| Operation       | Updates Item Model | StockLog | IssueLog |
-|-----------------|-----------------|----------|----------|
-| add-stock       | ✔ Yes           | ✔ Yes    | ✖ No     |
-| remove-stock    | ✔ Yes           | ✔ Yes    | ✖ No     |
-| issue item      | ✔ Yes           | ✖ No     | ✔ Yes    |
-| return item     | ✔ Yes           | ✖ No     | ✔ Yes    |
-
----
-
-## 🗄 Database Structure (Mongoose Models)
-- **User**: Student, Storekeeper, Admin, password hashing, JWT, role-based authorization
-- **Item**: Batch-wise stock, totalQuantity auto-managed, SKU, image support
-- **Request**: Tracks request lifecycle (**PENDING → APPROVED → ISSUED → RETURNED** or **PENDING → DECLINED**)
-- **IssueLog**: Tracks issued and returned items (negative quantity for returns)
-- **StockLog**: Logs manual stock changes only (ADD / REMOVE)
-
----
-
-## 🧵 Backend API Structure
-
-All endpoints are versioned under:
-
-### 1️⃣ Student Routes: `/api/v1/user`
-| Method | Route             | Description         |
-|--------|-----------------|-------------------|
-| POST   | `/register`       | Student registration |
-| POST   | `/login`          | Login             |
-| POST   | `/logout`         | Logout            |
-| POST   | `/refresh-token`  | Refresh access token |
-
-### 2️⃣ Storekeeper Item Routes: `/api/v1/item`
-| Method | Route          | Description           |
-|--------|----------------|----------------------|
-| POST   | `/add-stock`   | Add new batch / increase stock |
-| POST   | `/remove-stock`| Reduce stock / remove batch   |
-
-### 3️⃣ Requests Routes: `/api/v1/request`
-| Method | Route                | Role         | Description                      |
-|--------|--------------------|--------------|----------------------------------|
-| POST   | `/request`          | Student      | Request an item                  |
-| GET    | `/my-requests`      | Student      | View own requests                |
-| GET    | `/all-requests`     | Storekeeper  | View all student requests        |
-| PUT    | `/approve/:id`      | Storekeeper  | Approve request                  |
-| PUT    | `/decline/:id`      | Storekeeper  | Decline request                  |
-| PUT    | `/issue/:id`        | Storekeeper  | Issue an item                    |
-| PUT    | `/return/:id`       | Storekeeper  | Return an issued item            |
-
-### 4️⃣ Admin Routes: `/api/v1/admin`
-| Method | Route                  | Description              |
-|--------|------------------------|--------------------------|
-| POST   | `/add-storekeeper`     | Create storekeeper       |
-| PATCH  | `/blacklist/:userId`   | Blacklist a user         |
-| PATCH  | `/unblacklist/:userId` | Remove user from blacklist |
-
----
-
-## 🔐 Security & Authorization
-- JWT Authentication  
-- Role-Based Access Control  
-- HttpOnly Cookies  
-- Separate access & refresh tokens  
-- Blacklisting support  
-- Middleware protection for each module  
-
----
-
-## 🏗 Tech Stack
-
-**Frontend**
-- React.js, Vite, TailwindCSS, Axios  
-
-**Backend**
-- Node.js, Express.js, MongoDB, Mongoose, Multer (file uploads), Cloudinary (images)  
-
----
-
-## 📌 Installation & Setup
+Install backend dependencies:
 
 ```bash
-git clone https://github.com/your-repo/BioStoreX.git
-cd BioStoreX
+cd backend
 npm install
+```
+
+Install frontend dependencies:
+
+```bash
+cd frontend
+npm install
+```
+
+Create backend environment file:
+
+```bash
+cd backend
+copy .env.example .env
+```
+
+Start MongoDB locally, then start backend:
+
+```bash
+cd backend
+npm run dev
+```
+
+Start frontend:
+
+```bash
+cd frontend
+npm run dev
+```
+
+Open:
+
+```txt
+http://localhost:5173
+```
+
+## Backend Environment Variables
+
+Required:
+
+```env
+PORT=8000
+NODE_ENV=development
+CORS_ORIGIN=http://localhost:5173,http://127.0.0.1:5173
+MONGODB_URI=mongodb://127.0.0.1:27017
+ACCESS_TOKEN_SECRET=change-this-access-secret
+ACCESS_TOKEN_EXPIRY=1d
+REFRESH_TOKEN_SECRET=change-this-refresh-secret
+REFRESH_TOKEN_EXPIRY=10d
+```
+
+Optional default admin:
+
+```env
+DEFAULT_ADMIN_EMAIL=
+DEFAULT_ADMIN_PASSWORD=
+DEFAULT_ADMIN_USERNAME=admin
+DEFAULT_ADMIN_FULLNAME=System Administrator
+```
+
+Optional AI:
+
+```env
+GROQ_API_KEY=
+GROQ_MODEL=llama-3.3-70b-versatile
+OPENAI_API_KEY=
+OPENAI_MODEL=gpt-4o-mini
+```
+
+Optional email:
+
+```env
+EMAIL_HOST=
+EMAIL_PORT=587
+EMAIL_SECURE=false
+EMAIL_USER=
+EMAIL_PASS=
+EMAIL_FROM=BioStoreX <no-reply@biostorex.app>
+```
+
+## Main API Areas
+
+- `/api/v1/user` - authentication, profile, password reset
+- `/api/v1/item` - inventory and stock operations
+- `/api/v1/request` - student requests and issue/return workflow
+- `/api/v1/admin` - users, storekeepers, student approval
+- `/api/v1/ai` and `/api/ai` - AI chat, insights, prediction, expiry risk
+- `/api/v1/reports` - reports overview
+- `/api/v1/activity` - stock, issue, return, and audit logs
+
+## Roles
+
+Student:
+- Browse inventory
+- Request items
+- Track request status
+- Use AI assistant
+
+Storekeeper:
+- Add/remove stock
+- Approve, decline, issue, and return requests
+- Review pending students
+- View reports, activity logs, and AI dashboard
+
+Admin:
+- Manage users
+- Add storekeepers
+- Deactivate/reactivate accounts
+- View reports, activity logs, and AI dashboard
+
+## Testing
+
+Backend:
+
+```bash
+cd backend
+npm test
+```
+
+Frontend production build:
+
+```bash
+cd frontend
+npm run build
+```
+
+## Demo Notes
+
+For a strong demo:
+- Add a few items with expiry dates within 30, 60, and 90 days.
+- Create low-stock items by setting `minThreshold` above current stock.
+- Submit a few student requests and process some as issued/returned.
+- Open AI Dashboard, Reports, and Activity Logs to show end-to-end intelligence.
+

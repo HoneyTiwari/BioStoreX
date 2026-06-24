@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import jsonwebtoken from "jsonwebtoken";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 
 const userSchema = new mongoose.Schema({
     userName: { 
@@ -34,6 +34,12 @@ const userSchema = new mongoose.Schema({
     },
 
     isActive: { type: Boolean, default: true },
+
+    // New students must be approved by a Storekeeper or Admin before they
+    // can log in. Storekeeper/Admin accounts are always created directly by
+    // an Admin (see admin.controller.js), so they're approved by default —
+    // only self-registered Students start out unapproved.
+    isApproved: { type: Boolean, default: function () { return this.role !== "Student"; } },
 
     student: {
         registrationNo: { type: String },

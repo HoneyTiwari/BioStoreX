@@ -1,10 +1,44 @@
 import asyncHandler from "../utils/asyncHandler.js";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import jsonwebtoken from "jsonwebtoken";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { User } from "../models/user.model.js";
 import { sendEmail } from "../utils/mailer.js";
+
+const failedLoginAttempts = new Map();
+const LOCK_WINDOW_MS = 15 * 60 * 1000;
+const MAX_FAILED_ATTEMPTS = 5;
+
+const assertStrongPassword = (password, label = "Password") => {
+    if (!password || password.length < 8) {
+        throw new ApiError(400, `${label} must be at least 8 characters`);
+    }
+    if (!/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/\d/.test(password) || !/[^A-Za-z0-9]/.test(password)) {
+        throw new ApiError(400, `${label} must include uppercase, lowercase, number, and special character`);
+    }
+};
+
+const getLoginKey = ({ email, userName, req }) => `${(email || userName || "unknown").toLowerCase()}:${req.ip}`;
+
+const assertNotLocked = (key) => {
+    const record = failedLoginAttempts.get(key);
+    if (!record) return;
+    if (Date.now() > record.lockedUntil) {
+        failedLoginAttempts.delete(key);
+        return;
+    }
+    throw new ApiError(429, "Too many failed login attempts. Please try again later.");
+};
+
+const recordLoginFailure = (key) => {
+    const current = failedLoginAttempts.get(key) || { count: 0, lockedUntil: 0 };
+    const next = {
+        count: current.count + 1,
+        lockedUntil: current.count + 1 >= MAX_FAILED_ATTEMPTS ? Date.now() + LOCK_WINDOW_MS : current.lockedUntil,
+    };
+    failedLoginAttempts.set(key, next);
+};
 
 const generateAccessAndRefreshToken = async (userId) => {
     try {
@@ -35,6 +69,12 @@ const registerUser = asyncHandler(async (req, res) => {
         throw new ApiError(400, "All fields are required");
     }
 
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+        throw new ApiError(400, "Please provide a valid email address");
+    }
+
+    assertStrongPassword(password);
+
     if (req.body.role && req.body.role !== "Student") {
         throw new ApiError(403, "Only students can register using this route");
     }
@@ -62,7 +102,11 @@ const registerUser = asyncHandler(async (req, res) => {
     const createdUser = await User.findById(user._id).select("-password -refreshToken");
 
     return res.status(201).json(
-        new ApiResponse(201, createdUser, "Student registered successfully")
+        new ApiResponse(
+            201,
+            createdUser,
+            "Registration submitted. A storekeeper or admin needs to approve your account before you can log in."
+        )
     );
 });
 
@@ -76,6 +120,9 @@ const loginUser = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Email or username is required");
     }
 
+    const loginKey = getLoginKey({ email, userName, req });
+    assertNotLocked(loginKey);
+
     const user = await User.findOne({
         $or: [
             { userName: userName?.toLowerCase() },
@@ -84,16 +131,23 @@ const loginUser = asyncHandler(async (req, res) => {
     });
 
     if (!user) {
-        throw new ApiError(404, "User not found");
+        recordLoginFailure(loginKey);
+        throw new ApiError(401, "Invalid credentials");
     }
 
     const isValidPassword = await user.isPasswordCorrect(password);
     if (!isValidPassword) {
-        throw new ApiError(401, "Invalid password");
+        recordLoginFailure(loginKey);
+        throw new ApiError(401, "Invalid credentials");
     }
+    failedLoginAttempts.delete(loginKey);
 
     if (!user.isActive) {
         throw new ApiError(403, "User account is deactivated");
+    }
+
+    if (!user.isApproved) {
+        throw new ApiError(403, "Your account is pending approval from a storekeeper or admin. Please check back soon.");
     }
 
     const { accessToken, refreshToken } = await generateAccessAndRefreshToken(user._id);
@@ -107,7 +161,7 @@ const loginUser = asyncHandler(async (req, res) => {
         .json(
             new ApiResponse(
                 200,
-                { accessToken, refreshToken, user: loggedInUser },
+                { accessToken, user: loggedInUser },
                 "User logged in successfully"
             )
         );
@@ -145,7 +199,15 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
         throw new ApiError(401, "Unauthorized: No refresh token provided");
     }
 
-    const decodedToken = jsonwebtoken.verify(inRefreshToken, process.env.REFRESH_TOKEN_SECRET);
+    let decodedToken;
+    try {
+        decodedToken = jsonwebtoken.verify(inRefreshToken, process.env.REFRESH_TOKEN_SECRET);
+    } catch (err) {
+        if (err.name === "TokenExpiredError") {
+            throw new ApiError(401, "Session expired. Please log in again.");
+        }
+        throw new ApiError(401, "Unauthorized: Invalid refresh token");
+    }
 
     const user = await User.findById(decodedToken._id);
 
@@ -165,7 +227,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     .json(
         new ApiResponse(
             200,
-            { accessToken, refreshToken },
+            { accessToken },
             "Access token refreshed successfully"
         )
     );
@@ -184,14 +246,17 @@ const changePassword = asyncHandler(async (req, res) => {
         throw new ApiError(401, "Invalid current password");
     }
     
+    assertStrongPassword(newPassword, "New password");
+
     user.password = newPassword;
     await user.save();
-    
+
+    // Never return the user document here — it contains the (hashed) password.
     return res.status(200)
     .json(
         new ApiResponse(
             200,
-            user,
+            {},
             "Password changed successfully"
         )
     );
@@ -206,8 +271,13 @@ const forgotPassword = asyncHandler(async (req, res) => {
 
     const user = await User.findOne({ email: email.toLowerCase() });
 
+    // Always respond with the same generic message whether or not the
+    // account exists — returning 404 here would let an attacker enumerate
+    // registered emails.
+    const genericMessage = `If an account exists for ${email}, a password reset OTP has been sent.`;
+
     if (!user) {
-        throw new ApiError(404, "User not found");
+        return res.status(200).json(new ApiResponse(200, {}, genericMessage));
     }
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -219,15 +289,24 @@ const forgotPassword = asyncHandler(async (req, res) => {
     const text = `Your BioStoreX OTP is ${otp}. It expires in 15 minutes.`;
     const html = `<p>Your BioStoreX password reset code is <strong>${otp}</strong>.</p><p>It expires in 15 minutes.</p>`;
 
-    await sendEmail({ to: user.email, subject, text, html });
+    try {
+        await sendEmail({ to: user.email, subject, text, html });
+    } catch (err) {
+        console.error("Failed to send reset email:", err.message);
+        if (process.env.NODE_ENV !== "production") {
+            console.log("Development password reset OTP:", otp);
+            return res.status(200).json(
+                new ApiResponse(
+                    200,
+                    { devOtp: otp, emailSent: false },
+                    `${genericMessage} Email delivery failed, so the development reset code is shown in the app.`
+                )
+            );
+        }
+        // In production, don't reveal email-sending failures to the client.
+    }
 
-    return res.status(200).json(
-        new ApiResponse(
-            200,
-            {},
-            `OTP sent to ${user.email}. Check your email to continue.`
-        )
-    );
+    return res.status(200).json(new ApiResponse(200, { emailSent: true }, genericMessage));
 });
 
 const resetPassword = asyncHandler(async (req, res) => {
@@ -236,6 +315,8 @@ const resetPassword = asyncHandler(async (req, res) => {
     if (!email || !otp || !newPassword) {
         throw new ApiError(400, "Email, OTP, and new password are required");
     }
+
+    assertStrongPassword(newPassword, "New password");
 
     const user = await User.findOne({ email: email.toLowerCase() });
     if (!user || !user.passwordResetOtp || !user.passwordResetOtpExpires) {
@@ -275,13 +356,18 @@ const updateUserProfile = asyncHandler(async (req, res) => {
         throw new ApiError(400, "At least one field is required");
     }
 
-    const alreadyExists = await User.findOne({
-        userName: userName?.toLowerCase(),
-        _id: { $ne: req.user._id }
-    });
+    // Only check for a username collision when a username was actually
+    // provided — previously `userName: undefined` was still passed to the
+    // query, which matches any document missing that field entirely.
+    if (userName) {
+        const alreadyExists = await User.findOne({
+            userName: userName.toLowerCase(),
+            _id: { $ne: req.user._id },
+        });
 
-    if (alreadyExists) {
-        throw new ApiError(409, "Username is already taken");
+        if (alreadyExists) {
+            throw new ApiError(409, "Username is already taken");
+        }
     }
 
     const user = await User.findById(req.user._id);
@@ -303,6 +389,16 @@ const updateUserProfile = asyncHandler(async (req, res) => {
     );
 });
 
+/**
+ * Returns the currently authenticated user. Used by the frontend on app
+ * load / page refresh to restore session state.
+ */
+const getCurrentUser = asyncHandler(async (req, res) => {
+    return res.status(200).json(
+        new ApiResponse(200, req.user, "Current user fetched successfully")
+    );
+});
+
 export { registerUser,
     loginUser,
     logoutUser,
@@ -310,5 +406,6 @@ export { registerUser,
     changePassword,
     updateUserProfile,
     forgotPassword,
-    resetPassword
+    resetPassword,
+    getCurrentUser
 };

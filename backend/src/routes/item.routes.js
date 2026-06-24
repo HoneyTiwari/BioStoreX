@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { addStock, getAllItems, getItemById, removeStock } from "../controllers/item.controller.js";
+import { addStock, getAllItems, getItemById, removeStock, searchItems } from "../controllers/item.controller.js";
 import verifyJWT from "../middlewares/auth.middleware.js";
 import { authorizeRoles } from "../middlewares/authRoles.middleware.js";
 import { upload } from "../middlewares/multer.middleware.js";
@@ -12,10 +12,12 @@ router.get(
     getAllItems
 );
 
+// Must be declared before "/:id" so the literal "search" segment isn't
+// swallowed by the dynamic id route.
 router.get(
-    "/:id",
+    "/search",
     verifyJWT,
-    getItemById
+    searchItems
 );
 
 router.post(
@@ -33,5 +35,10 @@ router.post(
     removeStock
 );
 
+router.get(
+    "/:id",
+    verifyJWT,
+    getItemById
+);
 
 export default router;

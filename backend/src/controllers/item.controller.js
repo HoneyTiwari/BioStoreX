@@ -1,181 +1,195 @@
 import { Item } from "../models/item.model.js";
-import { StockLog } from "../models/stock-log.model.js"; 
+import { StockLog } from "../models/stock-log.model.js";
 import { uploadImage } from "../utils/cloudinary.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
-import cloudinary from "cloudinary";
+import asyncHandler from "../utils/asyncHandler.js";
+import { v2 as cloudinary } from "cloudinary";
 import fs from "fs";
 
-const getAllItems = async (req, res, next) => {
-    try {
-        const items = await Item.find().sort({ name: 1 });
+/**
+ * Fetch all items, newest-first dedup key but alphabetically sorted by
+ * display name for the UI.
+ */
+const getAllItems = asyncHandler(async (req, res) => {
+    const items = await Item.find().sort({ name: 1 });
+    return res.status(200).json(new ApiResponse(200, items, "Items fetched successfully"));
+});
+
+const getItemById = asyncHandler(async (req, res) => {
+    const item = await Item.findById(req.params.id);
+    if (!item) throw new ApiError(404, "Item not found");
+    return res.status(200).json(new ApiResponse(200, item, "Item fetched successfully"));
+});
+
+/**
+ * Simple text search across name/category, used by the frontend's
+ * AI-assisted search bar as a fast local pre-filter (the AI layer can
+ * further re-rank/explain results on top of this).
+ */
+const searchItems = asyncHandler(async (req, res) => {
+    const { q = "", category } = req.query;
+
+    const filter = {};
+    if (q.trim()) {
+        filter.name = { $regex: q.trim(), $options: "i" };
+    }
+    if (category) {
+        filter.category = category;
+    }
+
+    const items = await Item.find(filter).sort({ name: 1 }).limit(50);
+    return res.status(200).json(new ApiResponse(200, items, "Search results fetched"));
+});
+
+const addStock = asyncHandler(async (req, res) => {
+    const { name, category, unitType, quantity, batchNo, expiryDate, minThreshold } = req.body;
+
+    if (!name || !category || !unitType || !quantity || !batchNo) {
+        throw new ApiError(400, "Name, category, unit, quantity, and batch number are all required");
+    }
+
+    const numericQuantity = Number(quantity);
+    if (!Number.isFinite(numericQuantity) || numericQuantity <= 0) {
+        throw new ApiError(400, "Quantity must be a positive number");
+    }
+
+    if (expiryDate && Number.isNaN(new Date(expiryDate).getTime())) {
+        throw new ApiError(400, "Expiry date is invalid");
+    }
+
+    let imageUrl = null;
+    if (req.file) {
+        const img = await uploadImage(req.file.path);
+        if (!img) {
+            throw new ApiError(502, "Image upload failed. Please try again.");
+        }
+        imageUrl = { url: img.secure_url, publicId: img.public_id };
+
+        if (fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path);
+        }
+    }
+
+    // `name` is normalized to lowercase as a dedup/lookup key so that
+    // "Ethanol" and "ethanol" merge into a single item with two batches.
+    // `displayName` preserves what the storekeeper actually typed so the
+    // UI doesn't force everything to lowercase.
+    const normalizedName = name.trim().toLowerCase();
+    let item = await Item.findOne({ name: normalizedName });
+
+    const batchData = {
+        batchNo: batchNo.trim(),
+        quantity: numericQuantity,
+        expiryDate: expiryDate || null,
+    };
+
+    if (!item) {
+        item = await Item.create({
+            name: normalizedName,
+            displayName: name.trim(),
+            category,
+            unitType,
+            batches: [batchData],
+            totalQuantity: numericQuantity,
+            minThreshold: minThreshold ? Number(minThreshold) : undefined,
+            image: imageUrl,
+            sku: `SKU-${Date.now().toString(36).toUpperCase()}`,
+        });
+    } else {
+        // Prevent duplicate batch numbers on the same item.
+        const duplicateBatch = item.batches.find((b) => b.batchNo === batchData.batchNo);
+        if (duplicateBatch) {
+            throw new ApiError(409, `Batch "${batchData.batchNo}" already exists for this item. Use a unique batch number.`);
+        }
+
+        item.batches.push(batchData);
+        item.totalQuantity += numericQuantity;
+        if (imageUrl) item.image = imageUrl;
+        await item.save();
+    }
+
+    await StockLog.create({
+        item: item._id,
+        type: "ADD",
+        quantity: numericQuantity,
+        performedBy: req.user._id,
+        note: `Added batch ${batchData.batchNo}${expiryDate ? ` (Expiry: ${new Date(expiryDate).toLocaleDateString()})` : ""}`,
+    });
+
+    return res.status(201).json(new ApiResponse(201, item, "Stock added successfully"));
+});
+
+const removeStock = asyncHandler(async (req, res) => {
+    const { itemId, quantity, batchNo, note } = req.body;
+
+    if (!itemId || !quantity) {
+        throw new ApiError(400, "Item ID and quantity are required");
+    }
+
+    const numericQuantity = Number(quantity);
+    if (!Number.isFinite(numericQuantity) || numericQuantity <= 0) {
+        throw new ApiError(400, "Quantity must be a positive number");
+    }
+
+    const item = await Item.findById(itemId);
+    if (!item) {
+        throw new ApiError(404, "Item not found");
+    }
+
+    let qtyToRemove = numericQuantity;
+
+    if (batchNo) {
+        const batch = item.batches.find((b) => b.batchNo === batchNo);
+        if (!batch) {
+            throw new ApiError(404, `Batch "${batchNo}" not found`);
+        }
+        if (batch.quantity < qtyToRemove) {
+            throw new ApiError(400, `Insufficient stock in batch "${batchNo}" (only ${batch.quantity} available)`);
+        }
+        batch.quantity -= qtyToRemove;
+    } else {
+        if (item.totalQuantity < qtyToRemove) {
+            throw new ApiError(400, `Insufficient total stock (only ${item.totalQuantity} available)`);
+        }
+        // FIFO: drain the oldest batches first.
+        for (const batch of item.batches) {
+            if (qtyToRemove <= 0) break;
+            if (batch.quantity >= qtyToRemove) {
+                batch.quantity -= qtyToRemove;
+                qtyToRemove = 0;
+            } else {
+                qtyToRemove -= batch.quantity;
+                batch.quantity = 0;
+            }
+        }
+    }
+
+    item.totalQuantity -= numericQuantity;
+    // Drop any batches that are now fully depleted to keep the array tidy.
+    item.batches = item.batches.filter((b) => b.quantity > 0);
+
+    await StockLog.create({
+        item: item._id,
+        type: "REMOVE",
+        quantity: numericQuantity,
+        performedBy: req.user._id,
+        note: note?.trim() || `Removed ${numericQuantity} units${batchNo ? ` from batch "${batchNo}"` : ""}`,
+    });
+
+    if (item.totalQuantity <= 0) {
+        if (item.image?.publicId) {
+            await cloudinary.uploader.destroy(item.image.publicId).catch(() => null);
+        }
+        await Item.findByIdAndDelete(item._id);
 
         return res.status(200).json(
-            new ApiResponse(200, items, "Items fetched successfully")
+            new ApiResponse(200, { deleted: true, itemId }, "Stock removed and item deleted as stock reached 0")
         );
-    } catch (error) {
-        next(error);
     }
-};
 
-const getItemById = async (req, res, next) => {
-    try {
-        const item = await Item.findById(req.params.id);
+    await item.save();
+    return res.status(200).json(new ApiResponse(200, item, "Stock removed successfully"));
+});
 
-        if (!item) {
-            throw new ApiError(404, "Item not found");
-        }
-
-        return res.status(200).json(
-            new ApiResponse(200, item, "Item fetched successfully")
-        );
-    } catch (error) {
-        next(error);
-    }
-};
-
-const addStock = async (req, res, next) => {
-    try {
-        const { name, category, unitType, quantity, batchNo, expiryDate } = req.body;
-
-        if (!name || !category || !unitType || !quantity || !batchNo) {
-            throw new ApiError(400, "All fields are required");
-        }
-
-        let imageUrl = null;
-        if (req.file) {
-            const img = await uploadImage(req.file.path);
-            imageUrl = {
-                url: img.secure_url,
-                publicId: img.public_id
-            };
-
-            if (fs.existsSync(req.file.path)) {
-                fs.unlinkSync(req.file.path);
-            }
-        }
-
-        let item = await Item.findOne({ name: name.trim().toLowerCase() });
-
-        const batchData = {
-            batchNo,
-            quantity: Number(quantity),
-            expiryDate: expiryDate || null
-        };
-
-        if (!item) {
-            item = await Item.create({
-                name: name.trim().toLowerCase(),
-                category,
-                unitType,
-                batches: [batchData],
-                totalQuantity: Number(quantity),
-                image: imageUrl,
-                sku: "SKU-" + Date.now()
-            });
-        } else {
-            item.batches.push(batchData);
-            item.totalQuantity += Number(quantity);
-
-            if (imageUrl) item.image = imageUrl;
-
-            await item.save();
-        }
-
-        await StockLog.create({
-            item: item._id,
-            type: "ADD",
-            quantity: Number(quantity),
-            performedBy: req.user._id,
-            note: `Added batch ${batchNo}${expiryDate ? ` (Expiry: ${expiryDate})` : ""}`
-        });
-
-        return res.status(201).json(
-            new ApiResponse(201, item, "Stock added successfully")
-        );
-
-    } catch (error) {
-        next(error);
-    }
-};
-
-const removeStock = async (req, res, next) => {
-    try {
-        const { itemId, quantity, batchNo, note } = req.body;
-
-        if (!itemId || !quantity) {
-            throw new ApiError(400, "Item ID and quantity are required");
-        }
-
-        const item = await Item.findById(itemId);
-        if (!item) {
-            throw new ApiError(404, "Item not found");
-        }
-
-        let qtyToRemove = Number(quantity);
-
-        if (batchNo) {
-            const batch = item.batches.find(b => b.batchNo === batchNo);
-            if (!batch) {
-                throw new ApiError(404, `Batch ${batchNo} not found`);
-            }
-
-            if (batch.quantity < qtyToRemove) {
-                throw new ApiError(400, `Insufficient stock in batch ${batchNo}`);
-            }
-
-            batch.quantity -= qtyToRemove;
-        } else {
-            let totalAvailable = item.totalQuantity;
-            if (totalAvailable < qtyToRemove) {
-                throw new ApiError(400, "Insufficient total stock");
-            }
-
-            for (const batch of item.batches) {
-                if (qtyToRemove <= 0) break;
-
-                if (batch.quantity >= qtyToRemove) {
-                    batch.quantity -= qtyToRemove;
-                    qtyToRemove = 0;
-                } else {
-                    qtyToRemove -= batch.quantity;
-                    batch.quantity = 0;
-                }
-            }
-        }
-
-        item.totalQuantity -= Number(quantity);
-
-        await StockLog.create({
-            item: item._id,
-            type: "REMOVE",
-            quantity: Number(quantity),
-            performedBy: req.user._id,
-            note: note || `Removed ${quantity} units${batchNo ? ` from batch ${batchNo}` : ""}`
-        });
-
-        if (item.totalQuantity <= 0) {
-            if (item.image?.publicId) {
-                await cloudinary.uploader.destroy(item.image.publicId);
-            }
-
-            await Item.findByIdAndDelete(item._id);
-
-            return res.status(200).json(
-                new ApiResponse(200, null, "Stock removed and item deleted as stock reached 0")
-            );
-        } else {
-            await item.save();
-            return res.status(200).json(
-                new ApiResponse(200, item, "Stock removed successfully")
-            );
-        }
-
-    } catch (error) {
-        next(error);
-    }
-};
-
-
-
-export { getAllItems, getItemById, addStock, removeStock };
+export { getAllItems, getItemById, addStock, removeStock, searchItems };

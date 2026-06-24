@@ -34,7 +34,7 @@ router.get(
 router.get(
     "/all-requests",
     verifyJWT,
-    authorizeRoles("Storekeeper"),
+    authorizeRoles("Storekeeper", "Admin"),
     getAllRequests
 );
 

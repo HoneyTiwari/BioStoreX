@@ -2,6 +2,7 @@ import dotenv from "dotenv";
 import connectDB from "./db/index.js";
 import { app } from "./app.js";
 import { createDefaultAdmin } from "./utils/createDefaultAdmin.js";
+import { verifyEmailConfig } from "./utils/mailer.js";
 
 dotenv.config({ path: "./.env" });
 
@@ -13,6 +14,7 @@ connectDB()
 
 
         await createDefaultAdmin();
+        await verifyEmailConfig();
 
         app.listen(PORT, () => {
             console.log("Server is running on port " + PORT);

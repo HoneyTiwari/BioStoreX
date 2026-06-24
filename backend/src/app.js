@@ -1,71 +1,43 @@
 import express from "express";
 import cors from "cors";
+import helmet from "helmet";
 import cookieParser from "cookie-parser";
+import rateLimit from "express-rate-limit";
+import multer from "multer";
 
 const app = express();
-const allowedOrigins = (process.env.CORS_ORIGIN || "http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173")
+
+// ---------------------------------------------------------------------------
+// CORS
+// ---------------------------------------------------------------------------
+// A single source of truth for allowed origins. Previously the app combined
+// the `cors` package with a hand-rolled middleware that *also* set CORS
+// headers and short-circuited OPTIONS requests in development — the two
+// layers fought each other and made CORS issues harder to debug, not
+// easier. We now rely solely on the `cors` package.
+const allowedOrigins = (
+    process.env.CORS_ORIGIN || "http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173"
+)
     .split(",")
-    .map((origin) => origin.trim());
-
-console.log("Allowed CORS origins:", allowedOrigins);
-
-// Log incoming origin header for debugging CORS issues
-app.use((req, res, next) => {
-    console.log("Incoming request origin:", req.headers.origin, "path:", req.path);
-    next();
-});
-
-
-app.use(express.json({ limit: "16kb" }));
-app.use(express.urlencoded({ extended: true, limit: "16kb" }));
-
-
-app.use(cookieParser());
-
-// Development shortcut: explicitly allow CORS headers and handle preflight
-if (process.env.NODE_ENV !== "production") {
-    app.use((req, res, next) => {
-        const origin = req.headers.origin || "*";
-        res.setHeader("Access-Control-Allow-Origin", origin);
-        res.setHeader("Access-Control-Allow-Credentials", "true");
-        res.setHeader(
-            "Access-Control-Allow-Headers",
-            "Origin, X-Requested-With, Content-Type, Accept, Authorization"
-        );
-        res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
-
-        if (req.method === "OPTIONS") {
-            return res.sendStatus(200);
-        }
-
-        next();
-    });
-}
-
+    .map((origin) => origin.trim())
+    .filter(Boolean);
 
 const isLocalhostOrigin = (origin) => {
     try {
         if (!origin) return false;
         const url = new URL(origin);
         return url.hostname === "localhost" || url.hostname === "127.0.0.1";
-    } catch (e) {
+    } catch {
         return false;
     }
 };
 
 const corsOptions = {
     origin(origin, callback) {
-        // During development, allow all origins to simplify local testing.
-        if (process.env.NODE_ENV !== "production") {
-            console.log("Development mode: allowing origin", origin);
-            return callback(null, true);
-        }
-
+        // No origin (e.g. curl, server-to-server, mobile apps) is allowed.
         if (!origin || allowedOrigins.includes(origin) || isLocalhostOrigin(origin)) {
             return callback(null, true);
         }
-
-        console.warn("CORS blocked origin:", origin);
         return callback(new Error("Not allowed by CORS"));
     },
     credentials: true,
@@ -73,27 +45,93 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
+// ---------------------------------------------------------------------------
+// Security & parsing middleware
+// ---------------------------------------------------------------------------
+app.use(helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+}));
 
+app.use(express.json({ limit: "1mb" }));
+app.use(express.urlencoded({ extended: true, limit: "1mb" }));
+app.use(cookieParser());
+
+// Basic rate limiting to slow down brute-force / abuse on auth & AI routes.
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 50,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { success: false, statusCode: 429, message: "Too many attempts. Please try again later.", data: null },
+});
+
+const aiLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1 minute
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { success: false, statusCode: 429, message: "Too many AI requests. Please slow down.", data: null },
+});
+
+// ---------------------------------------------------------------------------
+// Routes
+// ---------------------------------------------------------------------------
 import userRouter from "./routes/user.routes.js";
-app.use("/api/v1/user", userRouter);
-
-
 import requestRouter from "./routes/request.route.js";
-app.use("/api/v1/request", requestRouter);
-
-
 import itemRouter from "./routes/item.routes.js";
-app.use("/api/v1/item", itemRouter);
-
-
 import adminRoutes from "./routes/admin.routes.js";
+import aiRoutes from "./routes/ai.routes.js";
+import reportRoutes from "./routes/report.routes.js";
+import activityRoutes from "./routes/activity.routes.js";
+
+app.use("/api/v1/user/login", authLimiter);
+app.use("/api/v1/user/register", authLimiter);
+app.use("/api/v1/user/forgot-password", authLimiter);
+app.use("/api/v1/user/reset-password", authLimiter);
+app.use("/api/v1/ai", aiLimiter);
+app.use("/api/ai", aiLimiter);
+
+app.use("/api/v1/user", userRouter);
+app.use("/api/v1/request", requestRouter);
+app.use("/api/v1/item", itemRouter);
 app.use("/api/v1/admin", adminRoutes);
+app.use("/api/v1/ai", aiRoutes);
+app.use("/api/ai", aiRoutes);
+app.use("/api/v1/reports", reportRoutes);
+app.use("/api/v1/activity", activityRoutes);
 
+// Health check — useful for uptime monitors / load balancers.
+app.get("/api/v1/health", (req, res) => {
+    res.status(200).json({ success: true, statusCode: 200, message: "OK", data: { uptime: process.uptime() } });
+});
 
-app.use((err, req, res, next) => {
-    const statusCode = err.statusCode || 500;
+// 404 handler for unmatched API routes.
+app.use("/api", (req, res) => {
+    res.status(404).json({
+        success: false,
+        statusCode: 404,
+        message: `Route ${req.method} ${req.originalUrl} not found`,
+        data: null,
+    });
+});
+
+// ---------------------------------------------------------------------------
+// Centralized error handler
+// ---------------------------------------------------------------------------
+app.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
+    if (err instanceof multer.MulterError || /Only JPEG, PNG, WEBP, and GIF/.test(err.message || "")) {
+        return res.status(400).json({
+            success: false,
+            statusCode: 400,
+            message: err.message,
+            data: null,
+        });
+    }
+
+    const statusCode = err.statusCode && err.statusCode >= 100 ? err.statusCode : 500;
+
     if (process.env.NODE_ENV !== "production") {
-        console.error("Error stack:", err.stack || err);
+        console.error(err.stack || err);
     }
 
     return res.status(statusCode).json({
@@ -104,6 +142,5 @@ app.use((err, req, res, next) => {
         data: null,
     });
 });
-
 
 export { app };
