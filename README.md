@@ -31,7 +31,7 @@ Backend:
 - MongoDB
 - Mongoose
 - JWT authentication
-- Nodemailer
+- Resend
 - Cloudinary
 - Groq/OpenAI-compatible AI APIs
 
@@ -111,15 +111,11 @@ OPENAI_API_KEY=
 OPENAI_MODEL=gpt-4o-mini
 ```
 
-Optional email:
+Optional email via Resend:
 
 ```env
-EMAIL_HOST=
-EMAIL_PORT=587
-EMAIL_SECURE=false
-EMAIL_USER=
-EMAIL_PASS=
-EMAIL_FROM=BioStoreX <no-reply@biostorex.app>
+RESEND_API_KEY=
+FROM_EMAIL=your_verified_email@yourdomain.com
 ```
 
 ## Main API Areas
@@ -175,4 +171,3 @@ For a strong demo:
 - Create low-stock items by setting `minThreshold` above current stock.
 - Submit a few student requests and process some as issued/returned.
 - Open AI Dashboard, Reports, and Activity Logs to show end-to-end intelligence.
-
