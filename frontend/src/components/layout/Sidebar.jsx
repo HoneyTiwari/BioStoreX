@@ -20,7 +20,7 @@ export default function Sidebar({ mobileOpen, onCloseMobile }) {
                 </div>
                 <button
                     onClick={onCloseMobile}
-                    className="ml-auto rounded-lg p-1.5 text-ink-500 hover:bg-ink-100 hover:text-ink-900 lg:hidden"
+                    className="ml-auto rounded-lg p-1.5 text-ink-500 hover:bg-ink-100 hover:text-ink-900 md:hidden"
                     aria-label="Close menu"
                 >
                     <X className="size-5" />
@@ -84,14 +84,14 @@ export default function Sidebar({ mobileOpen, onCloseMobile }) {
     return (
         <>
             {/* Desktop sidebar */}
-            <aside className="hidden lg:block lg:w-72 lg:shrink-0">
+            <aside className="hidden md:block md:w-72 md:shrink-0">
                 <div className="fixed inset-y-0 left-0 w-72">{content}</div>
             </aside>
 
             {/* Mobile drawer */}
             <div
                 className={clsx(
-                    "fixed inset-0 z-40 lg:hidden transition-opacity",
+                    "fixed inset-0 z-40 md:hidden transition-opacity",
                     mobileOpen ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
                 )}
             >

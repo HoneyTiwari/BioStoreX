@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
 import { AuthProvider } from "./context/AuthContext.jsx";
 import { ProtectedRoute, RoleRoute, PublicOnlyRoute } from "./components/layout/RouteGuards.jsx";
@@ -27,7 +27,7 @@ const NotFoundPage = lazy(() => import("./pages/NotFoundPage.jsx"));
 export default function App() {
     return (
         <ErrorBoundary>
-            <BrowserRouter>
+            <HashRouter>
                 <AuthProvider>
                     <Toaster
                         position="top-right"
@@ -66,8 +66,8 @@ export default function App() {
                                         <Route path="/my-requests" element={<MyRequestsPage />} />
                                     </Route>
 
-                                {/* Storekeeper-only */}
-                                    <Route element={<RoleRoute roles={["Storekeeper"]} />}>
+                                {/* Storekeeper + Admin inventory management */}
+                                    <Route element={<RoleRoute roles={["Storekeeper", "Admin"]} />}>
                                         <Route path="/add-stock" element={<AddStockPage />} />
                                     </Route>
 
@@ -92,7 +92,7 @@ export default function App() {
                         </Routes>
                     </Suspense>
                 </AuthProvider>
-            </BrowserRouter>
+            </HashRouter>
         </ErrorBoundary>
     );
 }

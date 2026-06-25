@@ -22,12 +22,13 @@ export default function InventoryPage() {
     const { user } = useAuth();
     const { items, loading, error, refetch } = useItems();
     const { available: aiAvailable } = useAiStatus();
+    const canManageStock = user?.role === "Storekeeper" || user?.role === "Admin";
 
     usePageHeader({
         title: "Inventory",
         subtitle: loading ? "Loading…" : `${items.length} item${items.length === 1 ? "" : "s"} tracked`,
         actions:
-            user?.role === "Storekeeper" ? (
+            canManageStock ? (
                 <Button as={Link} to="/add-stock" leftIcon={<PackagePlus className="size-4" />} className="hidden sm:inline-flex">
                     Add stock
                 </Button>
@@ -125,7 +126,7 @@ export default function InventoryPage() {
                 </div>
             </div>
 
-            {user?.role === "Storekeeper" && (
+            {canManageStock && (
                 <Button as={Link} to="/add-stock" leftIcon={<PackagePlus className="size-4" />} className="w-full sm:hidden">
                     Add stock
                 </Button>
@@ -190,7 +191,7 @@ export default function InventoryPage() {
                                                         Request
                                                     </Button>
                                                 )}
-                                                {user?.role === "Storekeeper" && (
+                                                {canManageStock && (
                                                     <Button size="sm" variant="outline" onClick={() => setRemoveTarget(item)}>
                                                         Remove
                                                     </Button>

@@ -6,10 +6,10 @@ export default function Topbar({ onOpenMobileMenu, title, subtitle, actions }) {
     const { user } = useAuth();
 
     return (
-        <header className="sticky top-0 z-30 mx-0 flex items-center gap-3 border-b border-white/60 bg-paper-100/75 px-4 py-4 backdrop-blur-xl sm:px-6 lg:mx-4 lg:mt-3 lg:rounded-3xl lg:border lg:border-ink-200/60 lg:bg-white/62 lg:shadow-card">
+        <header className="sticky top-0 z-30 mx-0 flex items-center gap-3 border-b border-white/60 bg-paper-100/75 px-4 py-4 backdrop-blur-xl sm:px-6 md:mx-4 md:mt-3 md:rounded-3xl md:border md:border-ink-200/60 md:bg-white/62 md:shadow-card">
             <button
                 onClick={onOpenMobileMenu}
-                className="rounded-xl p-2 text-ink-600 hover:bg-white lg:hidden"
+                className="rounded-xl p-2 text-ink-600 hover:bg-white md:hidden"
                 aria-label="Open menu"
             >
                 <Menu className="size-5" />

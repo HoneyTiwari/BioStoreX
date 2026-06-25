@@ -13,7 +13,7 @@ export function AuthProvider({ children }) {
     const [authLoading, setAuthLoading] = useState(false);
 
     // Try to restore a session on first load using the httpOnly refresh
-    // cookie (if present) — the apiClient's 401 interceptor will attempt a
+    // cookie (if present). The apiClient's 401 interceptor will attempt a
     // refresh automatically when /user/me fails with 401.
     useEffect(() => {
         let cancelled = false;
@@ -92,7 +92,7 @@ export function AuthProvider({ children }) {
             const { data } = await authService.me();
             setUser(data.data);
         } catch {
-            // ignore — handled elsewhere
+            // Ignore; handled elsewhere.
         }
     }, []);
 

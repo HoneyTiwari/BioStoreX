@@ -107,7 +107,7 @@ export default function ItemCard({ item, onRequest, onRemoveStock, role }) {
                                 {item.totalQuantity <= 0 ? "Unavailable" : "Request"}
                             </button>
                         )}
-                        {role === "Storekeeper" && onRemoveStock && (
+                        {(role === "Storekeeper" || role === "Admin") && onRemoveStock && (
                             <button
                                 onClick={() => onRemoveStock(item)}
                                 className="flex-1 rounded-xl border border-ink-300/80 bg-white/70 px-3 py-2 text-sm font-medium text-ink-700 transition-all hover:-translate-y-0.5 hover:bg-white"

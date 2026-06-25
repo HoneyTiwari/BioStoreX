@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
-import { KeyRound, Mail, Lock, Hash } from "lucide-react";
+import { Hash, KeyRound, Lock, Mail } from "lucide-react";
 import Input from "../components/ui/Input.jsx";
 import Button from "../components/ui/Button.jsx";
 import { AuthShell } from "./LoginPage.jsx";
@@ -10,13 +10,14 @@ import { getErrorMessage } from "../services/apiClient.js";
 
 export default function ForgotPasswordPage() {
     const navigate = useNavigate();
-    const [step, setStep] = useState("request"); // 'request' | 'reset'
+    const [step, setStep] = useState("request");
     const [email, setEmail] = useState("");
     const [otp, setOtp] = useState("");
     const [newPassword, setNewPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [errors, setErrors] = useState({});
     const [loading, setLoading] = useState(false);
+    const [devOtp, setDevOtp] = useState("");
 
     const handleRequestOtp = async (e) => {
         e.preventDefault();
@@ -31,7 +32,10 @@ export default function ForgotPasswordPage() {
             toast.success(data.message);
             if (data.data?.devOtp) {
                 setOtp(data.data.devOtp);
+                setDevOtp(data.data.devOtp);
                 toast.success(`Development reset code: ${data.data.devOtp}`, { duration: 10000 });
+            } else {
+                setDevOtp("");
             }
             setStep("reset");
         } catch (err) {
@@ -56,7 +60,7 @@ export default function ForgotPasswordPage() {
         try {
             await authService.resetPassword({ email: email.trim(), otp: otp.trim(), newPassword });
             toast.success("Password updated. You can now log in.");
-            navigate("/login", { replace: true });
+            navigate("/login", { replace: true, state: { resetEmail: email.trim() } });
         } catch (err) {
             toast.error(getErrorMessage(err, "Couldn't reset your password."));
         } finally {
@@ -74,9 +78,7 @@ export default function ForgotPasswordPage() {
                     {step === "request" ? "Reset your password" : "Enter the code"}
                 </h1>
                 <p className="mt-1 text-sm text-ink-500">
-                    {step === "request"
-                        ? "We'll email you a one-time code"
-                        : `Sent to ${email} — expires in 15 minutes`}
+                    {step === "request" ? "We'll email you a one-time code" : `Sent to ${email} - expires in 15 minutes`}
                 </p>
             </div>
 
@@ -100,6 +102,14 @@ export default function ForgotPasswordPage() {
                 </form>
             ) : (
                 <form onSubmit={handleResetPassword} className="mt-6 space-y-4">
+                    {devOtp ? (
+                        <div className="rounded-2xl border border-hazard-200 bg-hazard-50 px-4 py-3 text-sm text-hazard-800">
+                            <p className="font-semibold">Email delivery is not working yet.</p>
+                            <p className="mt-1">
+                                Development reset code: <span className="font-mono font-bold">{devOtp}</span>
+                            </p>
+                        </div>
+                    ) : null}
                     <Input
                         label="Reset code"
                         leftIcon={<Hash className="size-4" />}
@@ -122,6 +132,9 @@ export default function ForgotPasswordPage() {
                         }}
                         error={errors.newPassword}
                     />
+                    <p className="-mt-2 text-xs leading-5 text-ink-500">
+                        Password must include uppercase, lowercase, number, and symbol.
+                    </p>
                     <Input
                         label="Confirm new password"
                         type="password"

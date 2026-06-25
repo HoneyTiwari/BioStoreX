@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import Sidebar from "../components/layout/Sidebar.jsx";
@@ -11,12 +11,16 @@ function AppFrame() {
     const { header } = usePageHeaderContext();
     const location = useLocation();
 
+    useEffect(() => {
+        setMobileOpen(false);
+    }, [location.pathname]);
+
     return (
         <div className="min-h-screen text-ink-900">
             <div className="flex min-h-screen">
                 <Sidebar mobileOpen={mobileOpen} onCloseMobile={() => setMobileOpen(false)} />
 
-                <div className="flex min-w-0 flex-1 flex-col lg:pl-2">
+                <div className="flex min-w-0 flex-1 flex-col md:pl-2">
                     <Topbar
                         onOpenMobileMenu={() => setMobileOpen(true)}
                         title={header.title}

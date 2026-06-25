@@ -36,6 +36,7 @@ export const NAV_ITEMS_BY_ROLE = {
     Admin: [
         { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
         { to: "/inventory", label: "Inventory", icon: Boxes },
+        { to: "/add-stock", label: "Add Stock", icon: PackagePlus },
         { to: "/requests", label: "Requests", icon: ClipboardList },
         { to: "/users", label: "Users", icon: Users },
         { to: "/pending-students", label: "Pending Students", icon: UserCheck },
