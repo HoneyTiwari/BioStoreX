@@ -23,7 +23,7 @@ router.get(
 router.post(
     "/add-stock",
     verifyJWT,
-    authorizeRoles("Storekeeper"),
+    authorizeRoles("Storekeeper", "Admin"),
     upload.single("image"),
     addStock
 );
@@ -31,7 +31,7 @@ router.post(
 router.post(
     "/remove-stock",
     verifyJWT,
-    authorizeRoles("Storekeeper"),
+    authorizeRoles("Storekeeper", "Admin"),
     removeStock
 );
 
