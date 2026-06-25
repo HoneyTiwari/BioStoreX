@@ -1,6 +1,6 @@
 /**
- * Standalone SMTP test — verifies your EMAIL_* env vars work and, if you
- * pass a recipient address, sends a real test email.
+ * Standalone Resend test - verifies your RESEND_API_KEY/FROM_EMAIL env vars
+ * are present and, if you pass a recipient address, sends a real test email.
  *
  * Usage (from the backend/ folder, with your .env already filled in):
  *   node scripts/test-email.js
@@ -9,33 +9,26 @@
 import dotenv from "dotenv";
 dotenv.config({ path: "./.env" });
 
-import { verifyEmailConfig, sendEmail } from "../src/utils/mailer.js";
+import { verifyEmailConfig, sendEmail } from "../src/services/email.service.js";
 
 const recipient = process.argv[2];
 
-console.log("Checking EMAIL_* environment variables...\n");
+console.log("Checking Resend environment variables...\n");
 
-const { EMAIL_HOST, EMAIL_PORT, EMAIL_USER, EMAIL_PASS, EMAIL_FROM } = process.env;
-console.log("EMAIL_HOST:", EMAIL_HOST || "(not set)");
-console.log("EMAIL_PORT:", EMAIL_PORT || "(not set)");
-console.log("EMAIL_USER:", EMAIL_USER || "(not set)");
-console.log("EMAIL_PASS:", EMAIL_PASS ? `set (${EMAIL_PASS.length} characters)` : "(not set)");
-console.log("EMAIL_FROM:", EMAIL_FROM || "(not set, will default to EMAIL_USER)");
+const { RESEND_API_KEY, FROM_EMAIL } = process.env;
+console.log("RESEND_API_KEY:", RESEND_API_KEY ? `set (${RESEND_API_KEY.length} characters)` : "(not set)");
+console.log("FROM_EMAIL:", FROM_EMAIL || "(not set)");
 console.log();
 
 const verified = await verifyEmailConfig();
 
 if (!verified) {
-    console.log("\n✗ SMTP verification failed or email isn't configured — see the message above.");
-    console.log("  Common causes for Gmail:");
-    console.log("  - EMAIL_PASS is your normal Gmail password instead of an App Password");
-    console.log("  - 2-Step Verification isn't enabled on the Google account (required for App Passwords)");
-    console.log("  - EMAIL_USER has a typo");
+    console.log("\nEmail is not configured. Set RESEND_API_KEY and FROM_EMAIL in .env.");
     process.exit(1);
 }
 
 if (!recipient) {
-    console.log("\n✓ SMTP connection verified successfully.");
+    console.log("\nResend environment variables are configured.");
     console.log("  Run again with an email address as an argument to send a real test email:");
     console.log("  node scripts/test-email.js you@example.com");
     process.exit(0);
@@ -46,12 +39,12 @@ console.log(`\nSending a real test email to ${recipient}...`);
 try {
     await sendEmail({
         to: recipient,
-        subject: "BioStoreX SMTP test",
-        text: "If you're reading this, your BioStoreX email configuration works correctly.",
-        html: "<p>If you're reading this, your BioStoreX email configuration works correctly.</p>",
+        subject: "BioStoreX Resend test",
+        text: "If you're reading this, your BioStoreX Resend configuration works correctly.",
+        html: "<p>If you're reading this, your BioStoreX Resend configuration works correctly.</p>",
     });
-    console.log(`✓ Test email sent to ${recipient}. Check the inbox (and spam folder).`);
+    console.log(`Test email sent to ${recipient}. Check the inbox (and spam folder).`);
 } catch (error) {
-    console.error("✗ Sending failed:", error.message);
+    console.error("Sending failed:", error.message);
     process.exit(1);
 }

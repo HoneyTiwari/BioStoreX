@@ -2,7 +2,7 @@ import dotenv from "dotenv";
 import connectDB from "./db/index.js";
 import { app } from "./app.js";
 import { createDefaultAdmin } from "./utils/createDefaultAdmin.js";
-import { verifyEmailConfig } from "./utils/mailer.js";
+import { verifyEmailConfig } from "./services/email.service.js";
 
 dotenv.config({ path: "./.env" });
 

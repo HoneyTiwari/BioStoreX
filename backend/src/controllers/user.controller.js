@@ -4,7 +4,7 @@ import jsonwebtoken from "jsonwebtoken";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { User } from "../models/user.model.js";
-import { sendEmail } from "../utils/mailer.js";
+import { sendEmail } from "../services/email.service.js";
 
 const failedLoginAttempts = new Map();
 const LOCK_WINDOW_MS = 15 * 60 * 1000;
