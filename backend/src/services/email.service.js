@@ -1,43 +1,52 @@
-import { Resend } from "resend";
+import sgMail from "@sendgrid/mail";
 
-const getResendClient = () => {
-    if (!process.env.RESEND_API_KEY) {
-        return null;
+let sendGridConfigured = false;
+
+const configureSendGrid = () => {
+    if (!process.env.SENDGRID_API_KEY) {
+        sendGridConfigured = false;
+        return false;
     }
 
-    return new Resend(process.env.RESEND_API_KEY);
+    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+    sendGridConfigured = true;
+    return true;
 };
 
 export const verifyEmailConfig = async () => {
-    if (!process.env.RESEND_API_KEY || !process.env.FROM_EMAIL) {
+    if (!process.env.SENDGRID_API_KEY || !process.env.FROM_EMAIL) {
         console.log("Email not configured. Password-reset OTPs will be logged to this console instead of emailed.");
         return false;
     }
 
-    console.log(`Email configured with Resend (sending from ${process.env.FROM_EMAIL})`);
+    configureSendGrid();
+    console.log(`Email configured with SendGrid (sending from ${process.env.FROM_EMAIL})`);
     return true;
 };
 
 export const sendEmail = async ({ to, subject, text, html }) => {
-    const resend = getResendClient();
-
-    if (!resend || !process.env.FROM_EMAIL) {
-        console.warn("Resend email service is not configured. OTP email will not be sent.");
+    if ((!sendGridConfigured && !configureSendGrid()) || !process.env.FROM_EMAIL) {
+        console.warn("SendGrid email service is not configured. Email will not be sent.");
         console.log("Email preview:", { to, subject, text, html });
         return;
     }
 
-    const { data, error } = await resend.emails.send({
-        from: process.env.FROM_EMAIL,
-        to,
-        subject,
-        html,
-        text,
-    });
+    try {
+        const [response] = await sgMail.send({
+            from: process.env.FROM_EMAIL,
+            to,
+            subject,
+            text,
+            html,
+        });
 
-    if (error) {
-        throw new Error(error.message || "Resend email delivery failed");
+        return {
+            id: response?.headers?.["x-message-id"],
+            statusCode: response?.statusCode,
+        };
+    } catch (error) {
+        const details = error.response?.body?.errors || error.response?.body || error.message;
+        console.error("SendGrid email delivery failed:", details);
+        throw new Error(error.message || "SendGrid email delivery failed");
     }
-
-    return data;
 };
