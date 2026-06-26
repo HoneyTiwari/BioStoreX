@@ -31,7 +31,7 @@ Backend:
 - MongoDB
 - Mongoose
 - JWT authentication
-- Resend
+- SendGrid
 - Cloudinary
 - Groq/OpenAI-compatible AI APIs
 
@@ -111,10 +111,10 @@ OPENAI_API_KEY=
 OPENAI_MODEL=gpt-4o-mini
 ```
 
-Optional email via Resend:
+Optional email via SendGrid:
 
 ```env
-RESEND_API_KEY=
+SENDGRID_API_KEY=
 FROM_EMAIL=your_verified_email@yourdomain.com
 ```
 
