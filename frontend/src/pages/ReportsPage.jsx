@@ -41,7 +41,7 @@ export default function ReportsPage() {
 
     useEffect(() => { load(); }, []);
 
-    const issuedReturned = state.data?.issuedReturned || [];
+    const issuedReturned = useMemo(() => state.data?.issuedReturned || [], [state.data]);
     const paged = useMemo(() => issuedReturned.slice((page - 1) * pageSize, page * pageSize), [issuedReturned, page, pageSize]);
     const totalPages = Math.ceil(issuedReturned.length / pageSize);
 
