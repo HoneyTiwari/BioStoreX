@@ -16,9 +16,12 @@ const app = express();
 // layers fought each other and made CORS issues harder to debug, not
 // easier. We now rely solely on the `cors` package.
 const defaultOrigins = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173";
+const deployedOrigins = "https://bio-store-x.vercel.app";
 
 const allowedOrigins = [
-    process.env.CORS_ORIGIN || defaultOrigins,
+    defaultOrigins,
+    deployedOrigins,
+    process.env.CORS_ORIGIN,
     process.env.FRONTEND_URL,
     process.env.CLIENT_URL,
 ]
