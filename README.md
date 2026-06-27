@@ -116,7 +116,29 @@ Optional email via SendGrid:
 ```env
 SENDGRID_API_KEY=
 FROM_EMAIL=your_verified_email@yourdomain.com
+EXPIRY_ALERT_DAYS=30
+INVENTORY_ALERT_INTERVAL_HOURS=24
 ```
+
+## Deployment Environment
+
+Frontend:
+
+```env
+VITE_API_BASE_URL=https://biostorex.onrender.com
+```
+
+Backend:
+
+```env
+NODE_ENV=production
+CORS_ORIGIN=https://bio-store-x.vercel.app
+```
+
+If the login page says it cannot reach the server after deployment, confirm:
+- `VITE_API_BASE_URL` is set on the deployed frontend before building.
+- `CORS_ORIGIN` or `FRONTEND_URL` on the backend matches the deployed frontend origin exactly, without a trailing slash.
+- The backend health URL responds: `https://biostorex.onrender.com/api/v1/health`.
 
 ## Main API Areas
 
