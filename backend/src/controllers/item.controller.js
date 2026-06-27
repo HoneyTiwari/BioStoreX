@@ -6,6 +6,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import { v2 as cloudinary } from "cloudinary";
 import fs from "fs";
+import { notifyInventoryAlerts } from "../services/notification.service.js";
 
 /**
  * Fetch all items, newest-first dedup key but alphabetically sorted by
@@ -116,6 +117,7 @@ const addStock = asyncHandler(async (req, res) => {
         performedBy: req.user._id,
         note: `Added batch ${batchData.batchNo}${expiryDate ? ` (Expiry: ${new Date(expiryDate).toLocaleDateString()})` : ""}`,
     });
+    await notifyInventoryAlerts(item);
 
     return res.status(201).json(new ApiResponse(201, item, "Stock added successfully"));
 });
@@ -178,6 +180,8 @@ const removeStock = asyncHandler(async (req, res) => {
     });
 
     if (item.totalQuantity <= 0) {
+        await notifyInventoryAlerts(item);
+
         if (item.image?.publicId) {
             await cloudinary.uploader.destroy(item.image.publicId).catch(() => null);
         }
@@ -189,6 +193,7 @@ const removeStock = asyncHandler(async (req, res) => {
     }
 
     await item.save();
+    await notifyInventoryAlerts(item);
     return res.status(200).json(new ApiResponse(200, item, "Stock removed successfully"));
 });
 

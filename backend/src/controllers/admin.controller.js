@@ -3,6 +3,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import { logAudit } from "../utils/audit.js";
+import { notifyStudentApproved, notifyStudentRejected } from "../services/notification.service.js";
 
 const isStrongPassword = (password) =>
     typeof password === "string" &&
@@ -168,6 +169,7 @@ const approveStudent = asyncHandler(async (req, res) => {
         targetUser: user._id,
         message: `Approved student registration for ${user.fullName}`,
     });
+    await notifyStudentApproved(user);
 
     return res
         .status(200)
@@ -200,6 +202,7 @@ const rejectStudent = asyncHandler(async (req, res) => {
         targetUser: user._id,
         message: `Rejected student registration for ${user.fullName}`,
     });
+    await notifyStudentRejected(user);
 
     return res
         .status(200)

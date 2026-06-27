@@ -1,10 +1,12 @@
 import dotenv from "dotenv";
-import connectDB from "./db/index.js";
-import { app } from "./app.js";
-import { createDefaultAdmin } from "./utils/createDefaultAdmin.js";
-import { verifyEmailConfig } from "./services/email.service.js";
 
 dotenv.config({ path: "./.env" });
+
+const { default: connectDB } = await import("./db/index.js");
+const { app } = await import("./app.js");
+const { createDefaultAdmin } = await import("./utils/createDefaultAdmin.js");
+const { verifyEmailConfig } = await import("./services/email.service.js");
+const { startInventoryAlertScheduler } = await import("./services/notification.service.js");
 
 const PORT = process.env.PORT || 8000;
 
@@ -15,6 +17,7 @@ connectDB()
 
         await createDefaultAdmin();
         await verifyEmailConfig();
+        startInventoryAlertScheduler();
 
         app.listen(PORT, () => {
             console.log("Server is running on port " + PORT);

@@ -15,11 +15,16 @@ const app = express();
 // headers and short-circuited OPTIONS requests in development — the two
 // layers fought each other and made CORS issues harder to debug, not
 // easier. We now rely solely on the `cors` package.
-const allowedOrigins = (
-    process.env.CORS_ORIGIN || "http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173"
-)
-    .split(",")
-    .map((origin) => origin.trim())
+const defaultOrigins = "http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173";
+
+const allowedOrigins = [
+    process.env.CORS_ORIGIN || defaultOrigins,
+    process.env.FRONTEND_URL,
+    process.env.CLIENT_URL,
+]
+    .filter(Boolean)
+    .flatMap((originList) => originList.split(","))
+    .map((origin) => origin.trim().replace(/\/+$/, ""))
     .filter(Boolean);
 
 const isLocalhostOrigin = (origin) => {

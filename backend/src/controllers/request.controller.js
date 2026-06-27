@@ -4,6 +4,12 @@ import { Item } from "../models/item.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import asyncHandler from "../utils/asyncHandler.js";
+import {
+    notifyInventoryAlerts,
+    notifyRequestApproved,
+    notifyRequestDeclined,
+    notifyRequestIssued,
+} from "../services/notification.service.js";
 
 const requestItem = asyncHandler(async (req, res) => {
     const { itemId, quantity } = req.body;
@@ -44,7 +50,7 @@ const requestItem = asyncHandler(async (req, res) => {
 const approveRequest = asyncHandler(async (req, res) => {
     const { id: requestId } = req.params;
 
-    const request = await Request.findById(requestId).populate("item");
+    const request = await Request.findById(requestId).populate("item user");
     if (!request) throw new ApiError(404, "Request not found");
 
     if (request.status !== "PENDING") {
@@ -59,6 +65,7 @@ const approveRequest = asyncHandler(async (req, res) => {
     request.quantityApproved = request.quantityRequested;
     request.approvedBy = req.user._id;
     await request.save();
+    await notifyRequestApproved(request);
 
     return res.status(200).json(new ApiResponse(200, request, "Request approved successfully"));
 });
@@ -67,7 +74,7 @@ const declineRequest = asyncHandler(async (req, res) => {
     const { id: requestId } = req.params;
     const { reason } = req.body;
 
-    const request = await Request.findById(requestId);
+    const request = await Request.findById(requestId).populate("item user");
     if (!request) throw new ApiError(404, "Request not found");
 
     if (request.status !== "PENDING") {
@@ -78,6 +85,7 @@ const declineRequest = asyncHandler(async (req, res) => {
     request.declineReason = reason?.trim() || "No reason provided";
     request.approvedBy = req.user._id;
     await request.save();
+    await notifyRequestDeclined(request);
 
     return res.status(200).json(new ApiResponse(200, request, "Request declined"));
 });
@@ -127,6 +135,8 @@ const issueItem = asyncHandler(async (req, res) => {
         quantity: qty,
         issuedBy: req.user._id,
     });
+    await notifyRequestIssued(request);
+    await notifyInventoryAlerts(item);
 
     return res.status(200).json(new ApiResponse(200, request, "Item issued successfully"));
 });
