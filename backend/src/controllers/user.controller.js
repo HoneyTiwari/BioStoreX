@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import jsonwebtoken from "jsonwebtoken";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
-import { User } from "../models/user.model.js";
+import { User, normalizeUserRole } from "../models/user.model.js";
 import { sendEmail } from "../services/email.service.js";
 
 const failedLoginAttempts = new Map();
@@ -115,18 +115,24 @@ const registerUser = asyncHandler(async (req, res) => {
 
 const loginUser = asyncHandler(async (req, res) => {
     const { userName, email, password } = req.body;
+    const normalizedUserName = userName?.trim().toLowerCase();
+    const normalizedEmail = email?.trim().toLowerCase();
 
-    if (!userName && !email) {
+    if (!normalizedUserName && !normalizedEmail) {
         throw new ApiError(400, "Email or username is required");
     }
 
-    const loginKey = getLoginKey({ email, userName, req });
+    if (!password) {
+        throw new ApiError(400, "Password is required");
+    }
+
+    const loginKey = getLoginKey({ email: normalizedEmail, userName: normalizedUserName, req });
     assertNotLocked(loginKey);
 
     const user = await User.findOne({
         $or: [
-            { userName: userName?.toLowerCase() },
-            { email: email?.toLowerCase() }
+            { userName: normalizedUserName },
+            { email: normalizedEmail }
         ]
     });
 
@@ -141,6 +147,11 @@ const loginUser = asyncHandler(async (req, res) => {
         throw new ApiError(401, "Invalid credentials");
     }
     failedLoginAttempts.delete(loginKey);
+
+    const normalizedRole = normalizeUserRole(user.role);
+    if (normalizedRole !== user.role) {
+        user.role = normalizedRole;
+    }
 
     if (!user.isActive) {
         throw new ApiError(403, "User account is deactivated");
