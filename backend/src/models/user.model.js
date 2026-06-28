@@ -2,6 +2,16 @@ import mongoose from 'mongoose';
 import jsonwebtoken from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 
+export const normalizeUserRole = (role) => {
+    const roleMap = {
+        student: "Student",
+        storekeeper: "Storekeeper",
+        admin: "Admin",
+    };
+
+    return roleMap[String(role || "").trim().toLowerCase()] || role;
+};
+
 const userSchema = new mongoose.Schema({
     userName: { 
         type: String, 
@@ -29,6 +39,7 @@ const userSchema = new mongoose.Schema({
 
     role: { 
         type: String,
+        set: normalizeUserRole,
         enum: ["Student", "Storekeeper", "Admin"],
         default: "Student"
     },
@@ -54,6 +65,7 @@ const userSchema = new mongoose.Schema({
 
 
 userSchema.pre("save", async function () {
+    this.role = normalizeUserRole(this.role);
     if (!this.isModified("password")) return;
     this.password = await bcrypt.hash(this.password, 11);
 });
@@ -62,6 +74,7 @@ userSchema.pre("save", async function () {
 
 
 userSchema.methods.isPasswordCorrect = async function (password) {
+    if (!password || !this.password) return false;
     return bcrypt.compare(password, this.password);
 };
 
