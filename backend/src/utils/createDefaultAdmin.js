@@ -13,6 +13,8 @@ export const createDefaultAdmin = async () => {
             DEFAULT_STOREKEEPER_FULLNAME,
         } = process.env;
 
+        const canSyncDefaultAdmin = process.env.NODE_ENV !== "production";
+
         if (!DEFAULT_ADMIN_EMAIL || !DEFAULT_ADMIN_PASSWORD) {
             console.log("Default admin seeding skipped. Set DEFAULT_ADMIN_EMAIL and DEFAULT_ADMIN_PASSWORD to enable it.");
         } else if (DEFAULT_ADMIN_PASSWORD.length < 6) {
@@ -33,7 +35,22 @@ export const createDefaultAdmin = async () => {
                 console.log("Default Admin created:");
                 console.log("   Email:", adminUser.email);
             } else {
-                console.log("Admin already exists:", existingAdmin.email);
+                if (canSyncDefaultAdmin) {
+                    existingAdmin.userName = DEFAULT_ADMIN_USERNAME.toLowerCase();
+                    existingAdmin.fullName = DEFAULT_ADMIN_FULLNAME;
+                    existingAdmin.email = DEFAULT_ADMIN_EMAIL.toLowerCase();
+                    existingAdmin.password = DEFAULT_ADMIN_PASSWORD;
+                    existingAdmin.role = "Admin";
+                    existingAdmin.isActive = true;
+                    existingAdmin.isApproved = true;
+                    await existingAdmin.save();
+
+                    console.log("Default Admin synced from environment:");
+                    console.log("   Username:", existingAdmin.userName);
+                    console.log("   Email:", existingAdmin.email);
+                } else {
+                    console.log("Admin already exists:", existingAdmin.email);
+                }
             }
         }
 
