@@ -16,13 +16,14 @@ import { ItemCardSkeleton } from "../components/ui/Skeleton.jsx";
 import EmptyState from "../components/ui/EmptyState.jsx";
 import Button from "../components/ui/Button.jsx";
 import { aiService } from "../services/aiService.js";
-import { CATEGORY_META } from "../utils/navConfig.js";
+import { CATEGORY_META, normalizeRole } from "../utils/navConfig.js";
 
 export default function InventoryPage() {
     const { user } = useAuth();
     const { items, loading, error, refetch } = useItems();
     const { available: aiAvailable } = useAiStatus();
-    const canManageStock = user?.role === "Storekeeper" || user?.role === "Admin";
+    const role = normalizeRole(user?.role);
+    const canManageStock = role === "Storekeeper" || role === "Admin";
 
     usePageHeader({
         title: "Inventory",
@@ -186,7 +187,7 @@ export default function InventoryPage() {
                                             <td className="px-5 py-4 text-ink-600">{item.batches?.length || 0}</td>
                                             <td className="px-5 py-4 font-mono text-xs text-ink-500">{item.sku || "Not set"}</td>
                                             <td className="px-5 py-4 text-right">
-                                                {user?.role === "Student" && (
+                                                {role === "Student" && (
                                                     <Button size="sm" onClick={() => setRequestTarget(item)} disabled={item.totalQuantity <= 0}>
                                                         Request
                                                     </Button>
@@ -210,7 +211,7 @@ export default function InventoryPage() {
                         <ItemCard
                             key={item._id}
                             item={item}
-                            role={user?.role}
+                            role={role}
                             onRequest={setRequestTarget}
                             onRemoveStock={setRemoveTarget}
                         />

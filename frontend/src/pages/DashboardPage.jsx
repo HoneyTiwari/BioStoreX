@@ -23,6 +23,7 @@ import { StatusBadge } from "../components/ui/Badge.jsx";
 import { SectionLoader } from "../components/ui/Spinner.jsx";
 import EmptyState from "../components/ui/EmptyState.jsx";
 import { getStockLevel, formatRelativeTime, getSoonestExpiry, isExpiringSoon } from "../utils/format.js";
+import { normalizeRole } from "../utils/navConfig.js";
 import RestockInsights from "../components/ai/RestockInsights.jsx";
 
 const cardMotion = {
@@ -76,9 +77,10 @@ function QuickAction({ icon: Icon, title, description, to }) {
 
 export default function DashboardPage() {
     const { user } = useAuth();
-    const isStudent = user?.role === "Student";
-    const isStorekeeper = user?.role === "Storekeeper";
-    const isAdmin = user?.role === "Admin";
+    const role = normalizeRole(user?.role);
+    const isStudent = role === "Student";
+    const isStorekeeper = role === "Storekeeper";
+    const isAdmin = role === "Admin";
 
     usePageHeader({
         title: `Welcome, ${user?.fullName?.split(" ")[0]}`,
@@ -149,7 +151,7 @@ export default function DashboardPage() {
                         <Button as={Link} to="/inventory" variant="outline" leftIcon={<Boxes className="size-4" />}>
                             View inventory
                         </Button>
-                        {isStorekeeper && (
+                        {(isStorekeeper || isAdmin) && (
                             <Button as={Link} to="/add-stock" leftIcon={<PackagePlus className="size-4" />}>
                                 Add stock
                             </Button>
@@ -214,7 +216,7 @@ export default function DashboardPage() {
                         <h2 className="font-semibold text-ink-950">Quick actions</h2>
                         <div className="mt-4 space-y-3">
                             <QuickAction icon={Boxes} title="Inventory" description="Search and manage stock" to="/inventory" />
-                            {isStorekeeper && <QuickAction icon={PackagePlus} title="Add stock" description="Create batches and thresholds" to="/add-stock" />}
+                            {(isStorekeeper || isAdmin) && <QuickAction icon={PackagePlus} title="Add stock" description="Create batches and thresholds" to="/add-stock" />}
                             {(isStorekeeper || isAdmin) && <QuickAction icon={UserCheck} title="Pending students" description={`${pendingStudentCount} awaiting review`} to="/pending-students" />}
                             {isAdmin && <QuickAction icon={Users} title="Users" description="Manage access and roles" to="/users" />}
                             {isStudent && <QuickAction icon={Sparkles} title="Lab Assistant" description="Ask about stock availability" to="/assistant" />}

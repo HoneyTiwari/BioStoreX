@@ -16,6 +16,7 @@ import ConfirmDialog from "../components/ui/ConfirmDialog.jsx";
 import { requestService } from "../services/requestService.js";
 import { getErrorMessage } from "../services/apiClient.js";
 import { formatRelativeTime } from "../utils/format.js";
+import { normalizeRole } from "../utils/navConfig.js";
 import Pagination from "../components/ui/Pagination.jsx";
 
 const TABS = [
@@ -62,7 +63,8 @@ export default function RequestsManagementPage() {
         );
     }, [requests, tab, query]);
 
-    const isStorekeeper = user?.role === "Storekeeper";
+    const role = normalizeRole(user?.role);
+    const canProcessRequests = role === "Storekeeper" || role === "Admin";
     const pagedRequests = visibleRequests.slice((page - 1) * pageSize, page * pageSize);
     const totalPages = Math.ceil(visibleRequests.length / pageSize);
 
@@ -200,7 +202,7 @@ export default function RequestsManagementPage() {
 
                             <div className="flex shrink-0 items-center gap-2">
                                 <StatusBadge status={r.status} />
-                                {isStorekeeper && r.status === "PENDING" && (
+                                {canProcessRequests && r.status === "PENDING" && (
                                     <>
                                         <Button
                                             size="sm"
@@ -221,7 +223,7 @@ export default function RequestsManagementPage() {
                                         </Button>
                                     </>
                                 )}
-                                {isStorekeeper && r.status === "APPROVED" && (
+                                {canProcessRequests && r.status === "APPROVED" && (
                                     <Button
                                         size="sm"
                                         leftIcon={<PackageCheck className="size-3.5" />}
@@ -231,7 +233,7 @@ export default function RequestsManagementPage() {
                                         Mark issued
                                     </Button>
                                 )}
-                                {isStorekeeper && r.status === "ISSUED" && (
+                                {canProcessRequests && r.status === "ISSUED" && (
                                     <Button
                                         size="sm"
                                         variant="outline"

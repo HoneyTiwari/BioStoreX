@@ -12,7 +12,7 @@ import { SectionLoader } from "../components/ui/Spinner.jsx";
 import EmptyState from "../components/ui/EmptyState.jsx";
 import { adminService } from "../services/adminService.js";
 import { getErrorMessage } from "../services/apiClient.js";
-import { ROLE_LABELS } from "../utils/navConfig.js";
+import { ROLE_LABELS, normalizeRole } from "../utils/navConfig.js";
 import Pagination from "../components/ui/Pagination.jsx";
 
 const initialForm = { fullName: "", userName: "", email: "", password: "" };
@@ -158,14 +158,14 @@ export default function UsersManagementPage() {
                                     <td className="px-4 py-3 font-medium text-ink-900">{u.fullName}</td>
                                     <td className="px-4 py-3 font-mono text-ink-600">{u.userName}</td>
                                     <td className="px-4 py-3 text-ink-600">{u.email}</td>
-                                    <td className="px-4 py-3 text-ink-600">{ROLE_LABELS[u.role] || u.role}</td>
+                                    <td className="px-4 py-3 text-ink-600">{ROLE_LABELS[normalizeRole(u.role)] || u.role}</td>
                                     <td className="px-4 py-3">
                                         <Badge variant={u.isActive ? "success" : "danger"}>
                                             {u.isActive ? "Active" : "Deactivated"}
                                         </Badge>
                                     </td>
                                     <td className="px-4 py-3 text-right">
-                                        {u.role !== "Admin" && (
+                                        {normalizeRole(u.role) !== "Admin" && (
                                             <button
                                                 onClick={() => setToggleTarget(u)}
                                                 className="inline-flex items-center gap-1 text-xs font-medium text-ink-500 hover:text-ink-800"

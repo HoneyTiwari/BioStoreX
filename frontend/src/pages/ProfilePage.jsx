@@ -8,10 +8,11 @@ import Input from "../components/ui/Input.jsx";
 import Button from "../components/ui/Button.jsx";
 import { authService } from "../services/authService.js";
 import { getErrorMessage } from "../services/apiClient.js";
-import { ROLE_LABELS } from "../utils/navConfig.js";
+import { ROLE_LABELS, normalizeRole } from "../utils/navConfig.js";
 
 export default function ProfilePage() {
     const { user, refreshCurrentUser } = useAuth();
+    const role = normalizeRole(user?.role);
     usePageHeader({ title: "Profile", subtitle: "Manage your account details" });
 
     const [profileForm, setProfileForm] = useState({ fullName: user?.fullName || "", userName: user?.userName || "" });
@@ -74,7 +75,7 @@ export default function ProfilePage() {
                     <h2 className="font-semibold">Account details</h2>
                 </div>
                 <p className="mt-1 text-sm text-ink-500">
-                    {user?.email} · {ROLE_LABELS[user?.role] || user?.role}
+                    {user?.email} · {ROLE_LABELS[role] || user?.role}
                 </p>
 
                 <form onSubmit={handleProfileSubmit} className="mt-5 space-y-4">
