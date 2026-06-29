@@ -172,7 +172,7 @@ const loginUser = asyncHandler(async (req, res) => {
         .json(
             new ApiResponse(
                 200,
-                { accessToken, user: loggedInUser },
+                { accessToken, refreshToken, user: loggedInUser },
                 "User logged in successfully"
             )
         );
@@ -204,7 +204,7 @@ const logoutUser = asyncHandler(async (req, res) => {
 
 
 const refreshAccessToken = asyncHandler(async (req, res) => {
-    const inRefreshToken = req.cookies.refreshToken || req.body.refreshToken;
+    const inRefreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
 
     if (!inRefreshToken) {
         throw new ApiError(401, "Unauthorized: No refresh token provided");
@@ -238,7 +238,7 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     .json(
         new ApiResponse(
             200,
-            { accessToken },
+            { accessToken, refreshToken },
             "Access token refreshed successfully"
         )
     );

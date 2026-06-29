@@ -1,6 +1,6 @@
 import asyncHandler from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
-import { User } from "../models/user.model.js";
+import { User, normalizeUserRole } from "../models/user.model.js";
 import jsonwebtoken from "jsonwebtoken";
 
 /**
@@ -43,6 +43,8 @@ const verifyJWT = asyncHandler(async (req, res, next) => {
     if (!user) {
         throw new ApiError(401, "Unauthorized: User not found");
     }
+
+    user.role = normalizeUserRole(user.role);
 
     if (!user.isActive) {
         throw new ApiError(403, "Your account has been deactivated. Contact an administrator.");

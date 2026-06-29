@@ -1,4 +1,4 @@
-import { User } from "../models/user.model.js";
+import { User, normalizeUserRole } from "../models/user.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import asyncHandler from "../utils/asyncHandler.js";
@@ -72,7 +72,7 @@ const blacklistUser = asyncHandler(async (req, res) => {
     const user = await User.findById(userId);
     if (!user) throw new ApiError(404, "User not found");
 
-    if (user.role === "Admin") {
+    if (normalizeUserRole(user.role) === "Admin") {
         throw new ApiError(400, "Admin accounts cannot be blacklisted");
     }
 
@@ -151,7 +151,7 @@ const approveStudent = asyncHandler(async (req, res) => {
     const user = await User.findById(userId);
     if (!user) throw new ApiError(404, "User not found");
 
-    if (user.role !== "Student") {
+    if (normalizeUserRole(user.role) !== "Student") {
         throw new ApiError(400, "Only student accounts require approval");
     }
 
@@ -187,7 +187,7 @@ const rejectStudent = asyncHandler(async (req, res) => {
     const user = await User.findById(userId);
     if (!user) throw new ApiError(404, "User not found");
 
-    if (user.role !== "Student") {
+    if (normalizeUserRole(user.role) !== "Student") {
         throw new ApiError(400, "Only pending student accounts can be rejected");
     }
 
