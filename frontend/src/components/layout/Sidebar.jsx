@@ -2,11 +2,12 @@ import { NavLink } from "react-router-dom";
 import { FlaskConical, LogOut, Sparkles, X } from "lucide-react";
 import clsx from "clsx";
 import { useAuth } from "../../hooks/useAuth.js";
-import { NAV_ITEMS_BY_ROLE, ROLE_LABELS } from "../../utils/navConfig.js";
+import { NAV_ITEMS_BY_ROLE, ROLE_LABELS, normalizeRole } from "../../utils/navConfig.js";
 
 export default function Sidebar({ mobileOpen, onCloseMobile }) {
     const { user, logout } = useAuth();
-    const navItems = NAV_ITEMS_BY_ROLE[user?.role] || [];
+    const role = normalizeRole(user?.role);
+    const navItems = NAV_ITEMS_BY_ROLE[role] || [];
 
     const content = (
         <div className="glass-panel flex h-full flex-col border-r-0 bg-white/72 text-ink-700 lg:m-3 lg:rounded-3xl">
@@ -67,7 +68,7 @@ export default function Sidebar({ mobileOpen, onCloseMobile }) {
                     </div>
                     <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold text-ink-950">{user?.fullName}</p>
-                        <p className="truncate text-xs text-ink-500">{ROLE_LABELS[user?.role] || user?.role}</p>
+                        <p className="truncate text-xs text-ink-500">{ROLE_LABELS[role] || user?.role}</p>
                     </div>
                 </NavLink>
                 <button

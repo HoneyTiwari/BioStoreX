@@ -1,7 +1,7 @@
 import { Package, AlertTriangle, Clock } from "lucide-react";
 import { motion } from "framer-motion";
 import clsx from "clsx";
-import { CATEGORY_META } from "../../utils/navConfig.js";
+import { CATEGORY_META, normalizeRole } from "../../utils/navConfig.js";
 import { getSoonestExpiry, isExpiringSoon, isExpired, getStockLevel, formatDate } from "../../utils/format.js";
 
 /**
@@ -12,6 +12,7 @@ import { getSoonestExpiry, isExpiringSoon, isExpired, getStockLevel, formatDate 
  * results, dashboard "low stock" lists).
  */
 export default function ItemCard({ item, onRequest, onRemoveStock, role }) {
+    const normalizedRole = normalizeRole(role);
     const meta = CATEGORY_META[item.category] || { label: item.category, colorVar: "var(--color-ink-500)" };
     const stockLevel = getStockLevel(item.totalQuantity, item.minThreshold ?? 5);
     const soonestExpiry = getSoonestExpiry(item.batches);
@@ -98,7 +99,7 @@ export default function ItemCard({ item, onRequest, onRemoveStock, role }) {
 
                 {(onRequest || onRemoveStock) && (
                     <div className="mt-auto flex gap-2 pt-1">
-                        {role === "Student" && onRequest && (
+                        {normalizedRole === "Student" && onRequest && (
                             <button
                                 onClick={() => onRequest(item)}
                                 disabled={item.totalQuantity <= 0}
@@ -107,7 +108,7 @@ export default function ItemCard({ item, onRequest, onRemoveStock, role }) {
                                 {item.totalQuantity <= 0 ? "Unavailable" : "Request"}
                             </button>
                         )}
-                        {(role === "Storekeeper" || role === "Admin") && onRemoveStock && (
+                        {(normalizedRole === "Storekeeper" || normalizedRole === "Admin") && onRemoveStock && (
                             <button
                                 onClick={() => onRemoveStock(item)}
                                 className="flex-1 rounded-xl border border-ink-300/80 bg-white/70 px-3 py-2 text-sm font-medium text-ink-700 transition-all hover:-translate-y-0.5 hover:bg-white"

@@ -1,6 +1,7 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth.js";
 import { PageLoader } from "../ui/Spinner.jsx";
+import { normalizeRole } from "../../utils/navConfig.js";
 
 /** Wrap routes that require any authenticated user. */
 export function ProtectedRoute() {
@@ -24,7 +25,7 @@ export function RoleRoute({ roles }) {
 
     if (!user) return <Navigate to="/login" replace />;
 
-    if (!roles.includes(user.role)) {
+    if (!roles.includes(normalizeRole(user.role))) {
         return <Navigate to="/dashboard" replace />;
     }
 
