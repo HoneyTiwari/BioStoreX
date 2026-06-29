@@ -11,6 +11,16 @@ import {
     Activity,
 } from "lucide-react";
 
+export const normalizeRole = (role) => {
+    const roleMap = {
+        student: "Student",
+        storekeeper: "Storekeeper",
+        admin: "Admin",
+    };
+
+    return roleMap[String(role || "").trim().toLowerCase()] || role;
+};
+
 /**
  * Single source of truth for which nav items each role sees. Keeping this
  * centralized avoids scattering role checks across the Sidebar JSX.
