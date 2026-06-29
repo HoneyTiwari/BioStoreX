@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { authService } from "../services/authService.js";
-import { getErrorMessage, setAccessToken } from "../services/apiClient.js";
+import { getErrorMessage, setAuthTokens } from "../services/apiClient.js";
 import { AuthContext } from "./authContextDefinition.js";
 
 export function AuthProvider({ children }) {
@@ -48,7 +48,10 @@ export function AuthProvider({ children }) {
         setAuthLoading(true);
         try {
             const { data } = await authService.login(credentials);
-            setAccessToken(data.data.accessToken);
+            setAuthTokens({
+                accessToken: data.data.accessToken,
+                refreshToken: data.data.refreshToken,
+            });
             setUser(data.data.user);
             toast.success(`Welcome back, ${data.data.user.fullName.split(" ")[0]}!`);
             return data.data.user;
@@ -81,7 +84,7 @@ export function AuthProvider({ children }) {
             // Even if the server call fails, clear local state so the user
             // isn't stuck appearing logged-in.
         } finally {
-            setAccessToken(null);
+            setAuthTokens();
             setUser(null);
             toast.success("Logged out");
         }
