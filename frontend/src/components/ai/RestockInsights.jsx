@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Sparkles, RefreshCw } from "lucide-react";
 import Card from "../ui/Card.jsx";
 import { Spinner } from "../ui/Spinner.jsx";
 import { aiService } from "../../services/aiService.js";
 import { useAiStatus } from "../../hooks/useAiStatus.js";
+import { useAuth } from "../../hooks/useAuth.js";
 
 /** Renders a small amount of trusted markdown (bold + bullets) from the AI response. */
 function MiniMarkdown({ text }) {
@@ -35,13 +36,17 @@ function MiniMarkdown({ text }) {
 }
 
 export default function RestockInsights() {
+    const { user, initializing } = useAuth();
     const { available } = useAiStatus();
     const [insights, setInsights] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
     const [fetched, setFetched] = useState(false);
+    const authReady = !initializing && Boolean(user);
 
-    const fetchInsights = async () => {
+    const fetchInsights = useCallback(async () => {
+        if (!authReady) return;
+
         setLoading(true);
         setError("");
         try {
@@ -53,11 +58,11 @@ export default function RestockInsights() {
             setLoading(false);
             setFetched(true);
         }
-    };
+    }, [authReady]);
 
     useEffect(() => {
-        if (available) fetchInsights();
-    }, [available]);
+        if (available && authReady) fetchInsights();
+    }, [available, authReady, fetchInsights]);
 
     if (!available) return null;
 

@@ -20,7 +20,6 @@ export default class ErrorBoundary extends Component {
 
     handleReset = () => {
         this.setState({ hasError: false, error: null });
-        window.location.assign("/");
     };
 
     render() {
