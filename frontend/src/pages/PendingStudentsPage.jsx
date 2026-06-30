@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { UserCheck, Check, X, Mail, Hash } from "lucide-react";
+import { useAuth } from "../hooks/useAuth.js";
 import { usePageHeader } from "../hooks/usePageHeader.js";
 import Card from "../components/ui/Card.jsx";
 import Button from "../components/ui/Button.jsx";
@@ -12,6 +13,9 @@ import { getErrorMessage } from "../services/apiClient.js";
 import { formatRelativeTime } from "../utils/format.js";
 
 export default function PendingStudentsPage() {
+    const { user, initializing } = useAuth();
+    const authReady = !initializing && Boolean(user);
+
     usePageHeader({ title: "Pending Students", subtitle: "Approve or reject new student registrations" });
 
     const [pending, setPending] = useState([]);
@@ -21,7 +25,9 @@ export default function PendingStudentsPage() {
     const [rejectTarget, setRejectTarget] = useState(null);
     const [rejecting, setRejecting] = useState(false);
 
-    const fetchPending = async () => {
+    const fetchPending = useCallback(async () => {
+        if (!authReady) return;
+
         setLoading(true);
         setError("");
         try {
@@ -32,11 +38,12 @@ export default function PendingStudentsPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [authReady]);
 
     useEffect(() => {
+        if (!authReady) return;
         fetchPending();
-    }, []);
+    }, [authReady, fetchPending]);
 
     const handleApprove = async (student) => {
         setActioningId(student._id);

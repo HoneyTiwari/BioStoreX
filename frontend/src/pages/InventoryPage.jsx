@@ -25,15 +25,20 @@ export default function InventoryPage() {
     const role = normalizeRole(user?.role);
     const canManageStock = role === "Storekeeper" || role === "Admin";
 
-    usePageHeader({
-        title: "Inventory",
-        subtitle: loading ? "Loading…" : `${items.length} item${items.length === 1 ? "" : "s"} tracked`,
-        actions:
+    const headerActions = useMemo(
+        () =>
             canManageStock ? (
                 <Button as={Link} to="/add-stock" leftIcon={<PackagePlus className="size-4" />} className="hidden sm:inline-flex">
                     Add stock
                 </Button>
             ) : null,
+        [canManageStock]
+    );
+
+    usePageHeader({
+        title: "Inventory",
+        subtitle: loading ? "Loading…" : `${items.length} item${items.length === 1 ? "" : "s"} tracked`,
+        actions: headerActions,
     });
 
     const [query, setQuery] = useState("");

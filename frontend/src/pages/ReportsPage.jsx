@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, BarChart3, Download, FileText, PackageCheck, PackageSearch } from "lucide-react";
+import { useAuth } from "../hooks/useAuth.js";
 import { usePageHeader } from "../hooks/usePageHeader.js";
 import { reportService } from "../services/reportService.js";
 import { getErrorMessage } from "../services/apiClient.js";
@@ -24,12 +25,17 @@ function Stat({ icon: Icon, label, value }) {
 }
 
 export default function ReportsPage() {
+    const { user, initializing } = useAuth();
+    const authReady = !initializing && Boolean(user);
+
     usePageHeader({ title: "Reports", subtitle: "Inventory, low-stock, expiry, issue, and monthly usage reports" });
     const [state, setState] = useState({ loading: true, error: "", data: null });
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
 
-    const load = async () => {
+    const load = useCallback(async () => {
+        if (!authReady) return;
+
         setState({ loading: true, error: "", data: null });
         try {
             const { data } = await reportService.overview();
@@ -37,9 +43,12 @@ export default function ReportsPage() {
         } catch (error) {
             setState({ loading: false, error: getErrorMessage(error, "Could not load reports."), data: null });
         }
-    };
+    }, [authReady]);
 
-    useEffect(() => { load(); }, []);
+    useEffect(() => {
+        if (!authReady) return;
+        load();
+    }, [authReady, load]);
 
     const issuedReturned = useMemo(() => state.data?.issuedReturned || [], [state.data]);
     const paged = useMemo(() => issuedReturned.slice((page - 1) * pageSize, page * pageSize), [issuedReturned, page, pageSize]);

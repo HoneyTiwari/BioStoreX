@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Activity, Search } from "lucide-react";
+import { useAuth } from "../hooks/useAuth.js";
 import { usePageHeader } from "../hooks/usePageHeader.js";
 import { activityService } from "../services/activityService.js";
 import { getErrorMessage } from "../services/apiClient.js";
@@ -10,13 +11,18 @@ import { SectionLoader } from "../components/ui/Spinner.jsx";
 import Pagination from "../components/ui/Pagination.jsx";
 
 export default function ActivityLogsPage() {
+    const { user, initializing } = useAuth();
+    const authReady = !initializing && Boolean(user);
+
     usePageHeader({ title: "Activity Logs", subtitle: "Stock, issue, return, and admin audit history" });
     const [state, setState] = useState({ loading: true, error: "", data: [] });
     const [query, setQuery] = useState("");
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
 
-    const load = async () => {
+    const load = useCallback(async () => {
+        if (!authReady) return;
+
         setState({ loading: true, error: "", data: [] });
         try {
             const { data } = await activityService.logs();
@@ -24,9 +30,12 @@ export default function ActivityLogsPage() {
         } catch (error) {
             setState({ loading: false, error: getErrorMessage(error, "Could not load activity logs."), data: [] });
         }
-    };
+    }, [authReady]);
 
-    useEffect(() => { load(); }, []);
+    useEffect(() => {
+        if (!authReady) return;
+        load();
+    }, [authReady, load]);
 
     const filtered = useMemo(() => {
         const needle = query.trim().toLowerCase();
@@ -80,4 +89,3 @@ export default function ActivityLogsPage() {
         </div>
     );
 }
-

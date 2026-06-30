@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { Search, Users, UserPlus, ShieldOff, ShieldCheck } from "lucide-react";
+import { useAuth } from "../hooks/useAuth.js";
 import { usePageHeader } from "../hooks/usePageHeader.js";
 import Card from "../components/ui/Card.jsx";
 import Button from "../components/ui/Button.jsx";
@@ -18,6 +19,9 @@ import Pagination from "../components/ui/Pagination.jsx";
 const initialForm = { fullName: "", userName: "", email: "", password: "" };
 
 export default function UsersManagementPage() {
+    const { user, initializing } = useAuth();
+    const authReady = !initializing && Boolean(user);
+
     usePageHeader({ title: "Users", subtitle: "Manage storekeeper accounts and access" });
 
     const [users, setUsers] = useState([]);
@@ -33,7 +37,9 @@ export default function UsersManagementPage() {
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
 
-    const fetchUsers = async () => {
+    const fetchUsers = useCallback(async () => {
+        if (!authReady) return;
+
         setLoading(true);
         setError("");
         try {
@@ -44,11 +50,12 @@ export default function UsersManagementPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [authReady]);
 
     useEffect(() => {
+        if (!authReady) return;
         fetchUsers();
-    }, []);
+    }, [authReady, fetchUsers]);
 
     const updateField = (field) => (e) => {
         setForm((prev) => ({ ...prev, [field]: e.target.value }));

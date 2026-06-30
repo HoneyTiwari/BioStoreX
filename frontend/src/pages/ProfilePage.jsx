@@ -75,7 +75,7 @@ export default function ProfilePage() {
                     <h2 className="font-semibold">Account details</h2>
                 </div>
                 <p className="mt-1 text-sm text-ink-500">
-                    {user?.email} · {ROLE_LABELS[role] || user?.role}
+                    {user?.email} | {ROLE_LABELS[role] || user?.role}
                 </p>
 
                 <form onSubmit={handleProfileSubmit} className="mt-5 space-y-4">

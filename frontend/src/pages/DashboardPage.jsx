@@ -76,20 +76,27 @@ function QuickAction({ icon: Icon, title, description, to }) {
 }
 
 export default function DashboardPage() {
-    const { user } = useAuth();
+    const { user, initializing } = useAuth();
+    const authReady = !initializing && Boolean(user);
     const role = normalizeRole(user?.role);
     const isStudent = role === "Student";
     const isStorekeeper = role === "Storekeeper";
     const isAdmin = role === "Admin";
 
+    const headerActions = useMemo(
+        () =>
+            (isStorekeeper || isAdmin) ? (
+                <Button as={Link} to="/ai-dashboard" leftIcon={<Sparkles className="size-4" />}>
+                    AI Dashboard
+                </Button>
+            ) : null,
+        [isStorekeeper, isAdmin]
+    );
+
     usePageHeader({
         title: `Welcome, ${user?.fullName?.split(" ")[0]}`,
         subtitle: new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" }),
-        actions: (isStorekeeper || isAdmin) ? (
-            <Button as={Link} to="/ai-dashboard" leftIcon={<Sparkles className="size-4" />}>
-                AI Dashboard
-            </Button>
-        ) : null,
+        actions: headerActions,
     });
 
     const { items, loading: itemsLoading } = useItems();
@@ -97,7 +104,7 @@ export default function DashboardPage() {
     const [pendingStudentCount, setPendingStudentCount] = useState(0);
 
     useEffect(() => {
-        if (isStudent) return;
+        if (!authReady || isStudent) return;
         let cancelled = false;
         adminService
             .getPendingStudents()
@@ -108,7 +115,7 @@ export default function DashboardPage() {
         return () => {
             cancelled = true;
         };
-    }, [isStudent]);
+    }, [authReady, isStudent]);
 
     const stats = useMemo(() => {
         const lowStockItems = items.filter((i) => getStockLevel(i.totalQuantity, i.minThreshold ?? 5) !== "ok");

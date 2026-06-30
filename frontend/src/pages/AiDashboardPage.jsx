@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, BrainCircuit, Clock, PackageSearch, RefreshCw, Send, TrendingUp } from "lucide-react";
 import clsx from "clsx";
+import { useAuth } from "../hooks/useAuth.js";
 import { usePageHeader } from "../hooks/usePageHeader.js";
 import { aiService } from "../services/aiService.js";
 import { getErrorMessage } from "../services/apiClient.js";
@@ -70,6 +71,9 @@ function RiskPill({ value }) {
 }
 
 export default function AiDashboardPage() {
+    const { user, initializing } = useAuth();
+    const authReady = !initializing && Boolean(user);
+
     usePageHeader({ title: "AI Dashboard", subtitle: "Inventory intelligence, demand prediction, and expiry risk" });
 
     const [insights, setInsights] = useState({ loading: true, error: "", data: null });
@@ -82,7 +86,9 @@ export default function AiDashboardPage() {
     const [chatLoading, setChatLoading] = useState(false);
     const [chatError, setChatError] = useState("");
 
-    const loadInsights = async () => {
+    const loadInsights = useCallback(async () => {
+        if (!authReady) return;
+
         setInsights({ loading: true, error: "", data: null });
         try {
             const { data } = await aiService.inventoryInsights();
@@ -90,9 +96,11 @@ export default function AiDashboardPage() {
         } catch (error) {
             setInsights({ loading: false, error: getErrorMessage(error, "Inventory insights failed."), data: null });
         }
-    };
+    }, [authReady]);
 
-    const loadPrediction = async () => {
+    const loadPrediction = useCallback(async () => {
+        if (!authReady) return;
+
         setPrediction({ loading: true, error: "", data: null });
         try {
             const { data } = await aiService.stockPrediction();
@@ -100,9 +108,11 @@ export default function AiDashboardPage() {
         } catch (error) {
             setPrediction({ loading: false, error: getErrorMessage(error, "Stock prediction failed."), data: null });
         }
-    };
+    }, [authReady]);
 
-    const loadExpiry = async () => {
+    const loadExpiry = useCallback(async () => {
+        if (!authReady) return;
+
         setExpiry({ loading: true, error: "", data: null });
         try {
             const { data } = await aiService.expiryRisk();
@@ -110,13 +120,14 @@ export default function AiDashboardPage() {
         } catch (error) {
             setExpiry({ loading: false, error: getErrorMessage(error, "Expiry analysis failed."), data: null });
         }
-    };
+    }, [authReady]);
 
     useEffect(() => {
+        if (!authReady) return;
         loadInsights();
         loadPrediction();
         loadExpiry();
-    }, []);
+    }, [authReady, loadInsights, loadPrediction, loadExpiry]);
 
     const metrics = useMemo(() => {
         const summary = insights.data?.summary || {};
