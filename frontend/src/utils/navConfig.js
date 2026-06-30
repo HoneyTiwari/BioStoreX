@@ -58,7 +58,7 @@ export const NAV_ITEMS_BY_ROLE = {
 };
 
 export const ROLE_LABELS = {
-    Student: "Student",
+    Student: "General User",
     Storekeeper: "Storekeeper",
     Admin: "Administrator",
 };
