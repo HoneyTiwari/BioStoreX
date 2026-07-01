@@ -28,7 +28,7 @@ router.get("/stock-prediction", verifyJWT, authorizeRoles("Storekeeper", "Admin"
 router.get("/expiry-risk", verifyJWT, authorizeRoles("Storekeeper", "Admin"), getExpiryRisk);
 
 // Storekeeper + Admin: speeds up data entry and surfaces restocking concerns.
-router.post("/describe-item", verifyJWT, authorizeRoles("Storekeeper"), describeItem);
+router.post("/describe-item", verifyJWT, authorizeRoles("Storekeeper", "Admin"), describeItem);
 router.get("/restock-insights", verifyJWT, authorizeRoles("Storekeeper", "Admin"), restockInsights);
 
 export default router;

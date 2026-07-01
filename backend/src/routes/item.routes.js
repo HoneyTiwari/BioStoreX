@@ -2,7 +2,7 @@ import { Router } from "express";
 import { addStock, getAllItems, getItemById, removeStock, searchItems } from "../controllers/item.controller.js";
 import verifyJWT from "../middlewares/auth.middleware.js";
 import { authorizeRoles } from "../middlewares/authRoles.middleware.js";
-import { upload } from "../middlewares/multer.middleware.js";
+import { upload } from "../middlewares/upload.js";
 
 const router = Router();
 
