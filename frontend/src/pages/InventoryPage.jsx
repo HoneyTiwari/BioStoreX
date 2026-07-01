@@ -17,6 +17,7 @@ import EmptyState from "../components/ui/EmptyState.jsx";
 import Button from "../components/ui/Button.jsx";
 import { aiService } from "../services/aiService.js";
 import { CATEGORY_META, normalizeRole } from "../utils/navConfig.js";
+import { getOptimizedCloudinaryUrl } from "../utils/cloudinary.js";
 
 export default function InventoryPage() {
     const { user } = useAuth();
@@ -184,9 +185,27 @@ export default function InventoryPage() {
                             <tbody className="divide-y divide-ink-100/80">
                                 {filteredItems.map((item) => {
                                     const meta = CATEGORY_META[item.category] || { label: item.category };
+                                    const displayName = item.displayName || item.name;
+                                    const imageUrl = getOptimizedCloudinaryUrl(item.image?.url, { width: 96, height: 96 });
                                     return (
                                         <tr key={item._id} className="transition-colors hover:bg-white/70">
-                                            <td className="px-5 py-4 font-medium text-ink-950">{item.displayName || item.name}</td>
+                                            <td className="px-5 py-4">
+                                                <div className="flex items-center gap-3">
+                                                    {imageUrl ? (
+                                                        <img
+                                                            src={imageUrl}
+                                                            alt={displayName}
+                                                            className="size-10 rounded-lg border border-ink-200 bg-white object-cover"
+                                                            loading="lazy"
+                                                        />
+                                                    ) : (
+                                                        <div className="flex size-10 items-center justify-center rounded-lg bg-ink-100 text-ink-400">
+                                                            <PackageSearch className="size-4" />
+                                                        </div>
+                                                    )}
+                                                    <span className="font-medium text-ink-950">{displayName}</span>
+                                                </div>
+                                            </td>
                                             <td className="px-5 py-4 text-ink-600">{meta.label}</td>
                                             <td className="px-5 py-4 font-mono text-ink-900">{item.totalQuantity} {item.unitType}</td>
                                             <td className="px-5 py-4 text-ink-600">{item.batches?.length || 0}</td>

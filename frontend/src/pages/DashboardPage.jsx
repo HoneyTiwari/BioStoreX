@@ -107,9 +107,9 @@ export default function DashboardPage() {
         if (!authReady || isStudent) return;
         let cancelled = false;
         adminService
-            .getPendingStudents()
+            .getPendingStudentCount()
             .then(({ data }) => {
-                if (!cancelled) setPendingStudentCount((data.data || []).length);
+                if (!cancelled) setPendingStudentCount(data.data?.count || 0);
             })
             .catch(() => {});
         return () => {

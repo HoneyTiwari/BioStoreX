@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { Search, Users, UserPlus, ShieldOff, ShieldCheck } from "lucide-react";
 import { useAuth } from "../hooks/useAuth.js";
@@ -15,6 +15,7 @@ import { adminService } from "../services/adminService.js";
 import { getErrorMessage } from "../services/apiClient.js";
 import { ROLE_LABELS, normalizeRole } from "../utils/navConfig.js";
 import Pagination from "../components/ui/Pagination.jsx";
+import { useDebouncedValue } from "../hooks/useDebouncedValue.js";
 
 const initialForm = { fullName: "", userName: "", email: "", password: "" };
 
@@ -34,8 +35,10 @@ export default function UsersManagementPage() {
     const [toggleTarget, setToggleTarget] = useState(null);
     const [toggling, setToggling] = useState(false);
     const [query, setQuery] = useState("");
+    const debouncedQuery = useDebouncedValue(query, 350);
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
+    const [pagination, setPagination] = useState({ total: 0, totalPages: 1 });
 
     const fetchUsers = useCallback(async () => {
         if (!authReady) return;
@@ -43,14 +46,19 @@ export default function UsersManagementPage() {
         setLoading(true);
         setError("");
         try {
-            const { data } = await adminService.getAllUsers();
-            setUsers(data.data || []);
+            const { data } = await adminService.getAllUsers({
+                page,
+                limit: pageSize,
+                q: debouncedQuery.trim() || undefined,
+            });
+            setUsers(data.data?.users || []);
+            setPagination(data.data?.pagination || { total: 0, totalPages: 1 });
         } catch (err) {
             setError(getErrorMessage(err, "Couldn't load users."));
         } finally {
             setLoading(false);
         }
-    }, [authReady]);
+    }, [authReady, page, pageSize, debouncedQuery]);
 
     useEffect(() => {
         if (!authReady) return;
@@ -112,13 +120,8 @@ export default function UsersManagementPage() {
         }
     };
 
-    const filteredUsers = users.filter((u) => {
-        const text = `${u.fullName} ${u.userName} ${u.email} ${u.role}`.toLowerCase();
-        return text.includes(query.trim().toLowerCase());
-    });
-
-    const pagedUsers = filteredUsers.slice((page - 1) * pageSize, page * pageSize);
-    const totalPages = Math.ceil(filteredUsers.length / pageSize);
+    const totalPages = pagination.totalPages || 1;
+    const visibleUsers = useMemo(() => users, [users]);
 
     return (
         <div className="space-y-4">
@@ -141,9 +144,9 @@ export default function UsersManagementPage() {
                 <SectionLoader label="Loading users…" />
             ) : error ? (
                 <EmptyState icon={Users} title="Couldn't load users" description={error} action={<Button onClick={fetchUsers}>Try again</Button>} />
-            ) : users.length === 0 ? (
+            ) : users.length === 0 && !query.trim() ? (
                 <EmptyState icon={Users} title="No users yet" />
-            ) : filteredUsers.length === 0 ? (
+            ) : visibleUsers.length === 0 ? (
                 <EmptyState icon={Search} title="No users match your search" description="Try a different name, email, username, or role." />
             ) : (
                 <Card className="overflow-hidden">
@@ -160,7 +163,7 @@ export default function UsersManagementPage() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-ink-100">
-                            {pagedUsers.map((u) => (
+                            {visibleUsers.map((u) => (
                                 <tr key={u._id} className="transition-colors hover:bg-white/70">
                                     <td className="px-4 py-3 font-medium text-ink-900">{u.fullName}</td>
                                     <td className="px-4 py-3 font-mono text-ink-600">{u.userName}</td>

@@ -12,6 +12,7 @@ import { CATEGORY_META, UNIT_TYPES } from "../utils/navConfig.js";
 import { itemService } from "../services/itemService.js";
 import { aiService } from "../services/aiService.js";
 import { getErrorMessage } from "../services/apiClient.js";
+import { invalidateItemsCache } from "../hooks/useItems.js";
 
 const initialForm = {
     name: "",
@@ -103,6 +104,7 @@ export default function AddStockPage() {
             if (imageFile) formData.append("image", imageFile);
 
             await itemService.addStock(formData);
+            invalidateItemsCache();
             toast.success(`${form.name} added to inventory`);
             navigate("/inventory");
         } catch (err) {
