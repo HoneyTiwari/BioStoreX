@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import clsx from "clsx";
 import { CATEGORY_META, normalizeRole } from "../../utils/navConfig.js";
 import { getSoonestExpiry, isExpiringSoon, isExpired, getStockLevel, formatDate } from "../../utils/format.js";
+import { getOptimizedCloudinaryUrl } from "../../utils/cloudinary.js";
 
 /**
  * Item card styled like a specimen/reagent label: a colored category stripe
@@ -19,6 +20,7 @@ export default function ItemCard({ item, onRequest, onRemoveStock, role }) {
     const expiringSoon = isExpiringSoon(soonestExpiry);
     const expired = isExpired(soonestExpiry);
     const displayName = item.displayName || item.name;
+    const imageUrl = getOptimizedCloudinaryUrl(item.image?.url, { width: 160, height: 160 });
 
     return (
         <motion.div
@@ -48,16 +50,25 @@ export default function ItemCard({ item, onRequest, onRemoveStock, role }) {
                             )}
                         </div>
                     </div>
-                    <div
-                        className={clsx(
-                            "flex shrink-0 items-center justify-center rounded-2xl p-2 shadow-sm",
-                            stockLevel === "out" && "bg-hazard-500/10 text-hazard-500",
-                            stockLevel === "low" && "bg-specimen-400/15 text-specimen-500",
-                            stockLevel === "ok" && "bg-glove-500/10 text-glove-500"
-                        )}
-                    >
-                        <Package className="size-4" />
-                    </div>
+                    {imageUrl ? (
+                        <img
+                            src={imageUrl}
+                            alt={displayName}
+                            className="size-14 shrink-0 rounded-xl border border-ink-200 bg-white object-cover shadow-sm"
+                            loading="lazy"
+                        />
+                    ) : (
+                        <div
+                            className={clsx(
+                                "flex size-10 shrink-0 items-center justify-center rounded-2xl shadow-sm",
+                                stockLevel === "out" && "bg-hazard-500/10 text-hazard-500",
+                                stockLevel === "low" && "bg-specimen-400/15 text-specimen-500",
+                                stockLevel === "ok" && "bg-glove-500/10 text-glove-500"
+                            )}
+                        >
+                            <Package className="size-4" />
+                        </div>
+                    )}
                 </div>
 
                 <div className="flex items-end justify-between">
