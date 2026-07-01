@@ -19,6 +19,9 @@ const requestSchema = new mongoose.Schema({
     returnProcessedBy: { type: mongoose.Types.ObjectId, ref: "User" }
 }, { timestamps: true });
 
+requestSchema.index({ user: 1, createdAt: -1 });
+requestSchema.index({ status: 1, createdAt: -1 });
+requestSchema.index({ item: 1, createdAt: -1 });
 
 export const Request = mongoose.model("Request", requestSchema);
 

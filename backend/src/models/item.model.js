@@ -40,5 +40,9 @@ itemSchema.pre("save", function (next) {
     next();
 });
 
+itemSchema.index({ name: 1 });
+itemSchema.index({ category: 1, name: 1 });
+itemSchema.index({ totalQuantity: 1 });
+itemSchema.index({ "batches.expiryDate": 1 });
 
 export const Item = mongoose.model("Item", itemSchema);

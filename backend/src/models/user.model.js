@@ -63,6 +63,9 @@ const userSchema = new mongoose.Schema({
 
 }, { timestamps: true });
 
+userSchema.index({ role: 1, isApproved: 1, createdAt: 1 });
+userSchema.index({ role: 1, createdAt: -1 });
+userSchema.index({ fullName: "text", userName: "text", email: "text", role: "text" });
 
 userSchema.pre("save", async function () {
     this.role = normalizeUserRole(this.role);

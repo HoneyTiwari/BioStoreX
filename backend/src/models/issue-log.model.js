@@ -10,4 +10,8 @@ const issueLogSchema = new mongoose.Schema({
     note: { type: String },
 }, { timestamps: true });
 
+issueLogSchema.index({ createdAt: -1 });
+issueLogSchema.index({ item: 1, createdAt: -1 });
+issueLogSchema.index({ issuedTo: 1, createdAt: -1 });
+
 export const IssueLog = mongoose.model("IssueLog", issueLogSchema);

@@ -9,5 +9,8 @@ const stockLogSchema = new mongoose.Schema({
     note: String
 }, { timestamps: true });
 
+stockLogSchema.index({ createdAt: -1 });
+stockLogSchema.index({ item: 1, createdAt: -1 });
+stockLogSchema.index({ performedBy: 1, createdAt: -1 });
 
 export const StockLog = mongoose.model("StockLog", stockLogSchema);
