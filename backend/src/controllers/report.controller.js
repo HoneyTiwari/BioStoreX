@@ -3,7 +3,6 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { Item } from "../models/item.model.js";
 import { Request } from "../models/request.model.js";
 import { IssueLog } from "../models/issue-log.model.js";
-import { StockLog } from "../models/stock-log.model.js";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -11,12 +10,19 @@ const getReportsOverview = asyncHandler(async (req, res) => {
     const now = Date.now();
     const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 
-    const [items, requests, issueLogs, stockLogs] = await Promise.all([
+    console.time("[reports:overview] db");
+    const [items, totalRequests, issueLogs] = await Promise.all([
         Item.find().select("name displayName category unitType totalQuantity minThreshold batches").lean(),
-        Request.find().populate("item", "name displayName category unitType").populate("user", "fullName userName").lean(),
-        IssueLog.find().populate("item", "name displayName category unitType").populate("issuedTo", "fullName userName").populate("issuedBy", "fullName userName").sort({ createdAt: -1 }).lean(),
-        StockLog.find().populate("item", "name displayName category unitType").populate("performedBy", "fullName userName").sort({ createdAt: -1 }).lean(),
+        Request.countDocuments(),
+        IssueLog.find()
+            .populate("item", "name displayName category unitType")
+            .populate("issuedTo", "fullName userName")
+            .populate("issuedBy", "fullName userName")
+            .sort({ createdAt: -1 })
+            .limit(500)
+            .lean(),
     ]);
+    console.timeEnd("[reports:overview] db");
 
     const lowStock = items.filter((item) => item.totalQuantity <= (item.minThreshold ?? 5));
     const expiryRisk = items.flatMap((item) =>
@@ -64,18 +70,14 @@ const getReportsOverview = asyncHandler(async (req, res) => {
             totalStock: items.reduce((sum, item) => sum + Number(item.totalQuantity || 0), 0),
             lowStockCount: lowStock.length,
             expiryRiskCount: expiryRisk.length,
-            totalRequests: requests.length,
+            totalRequests,
             monthlyIssued,
         },
-        inventory: items,
         lowStock,
         expiryRisk,
         issuedReturned,
         monthlyUsage,
-        stockLogs,
-        requests,
     }, "Reports generated"));
 });
 
 export { getReportsOverview };
-

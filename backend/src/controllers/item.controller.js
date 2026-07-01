@@ -1,11 +1,9 @@
 import { Item } from "../models/item.model.js";
 import { StockLog } from "../models/stock-log.model.js";
-import { uploadImage } from "../utils/cloudinary.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import asyncHandler from "../utils/asyncHandler.js";
-import { v2 as cloudinary } from "cloudinary";
-import fs from "fs";
+import { cloudinary } from "../config/cloudinary.js";
 import { notifyInventoryAlerts } from "../services/notification.service.js";
 
 /**
@@ -13,7 +11,12 @@ import { notifyInventoryAlerts } from "../services/notification.service.js";
  * display name for the UI.
  */
 const getAllItems = asyncHandler(async (req, res) => {
-    const items = await Item.find().sort({ name: 1 });
+    console.time("[items:getAll] query");
+    const items = await Item.find()
+        .select("name displayName category unitType image batches totalQuantity minThreshold sku updatedAt")
+        .sort({ name: 1 })
+        .lean();
+    console.timeEnd("[items:getAll] query");
     return res.status(200).json(new ApiResponse(200, items, "Items fetched successfully"));
 });
 
@@ -39,7 +42,11 @@ const searchItems = asyncHandler(async (req, res) => {
         filter.category = category;
     }
 
-    const items = await Item.find(filter).sort({ name: 1 }).limit(50);
+    const items = await Item.find(filter)
+        .select("name displayName category unitType image batches totalQuantity minThreshold sku updatedAt")
+        .sort({ name: 1 })
+        .limit(50)
+        .lean();
     return res.status(200).json(new ApiResponse(200, items, "Search results fetched"));
 });
 
@@ -61,15 +68,14 @@ const addStock = asyncHandler(async (req, res) => {
 
     let imageUrl = null;
     if (req.file) {
-        const img = await uploadImage(req.file.path);
-        if (!img) {
-            throw new ApiError(502, "Image upload failed. Please try again.");
-        }
-        imageUrl = { url: img.secure_url, publicId: img.public_id };
+        console.log("[items:addStock] Using uploaded Cloudinary image", {
+            publicId: req.file.filename,
+            url: req.file.path,
+        });
 
-        if (fs.existsSync(req.file.path)) {
-            fs.unlinkSync(req.file.path);
-        }
+        imageUrl = { url: req.file.path, publicId: req.file.filename };
+    } else {
+        console.log("[items:addStock] Creating item without image upload");
     }
 
     // `name` is normalized to lowercase as a dedup/lookup key so that

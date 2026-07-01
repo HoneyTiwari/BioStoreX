@@ -121,10 +121,42 @@ const unBlacklistUser = asyncHandler(async (req, res) => {
  * List all users (for the admin dashboard user management table).
  */
 const getAllUsers = asyncHandler(async (req, res) => {
-    const users = await User.find().select("-password -refreshToken").sort({ createdAt: -1 });
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const limit = Math.min(100, Math.max(1, Number(req.query.limit) || 20));
+    const q = String(req.query.q || "").trim();
+    const filter = q
+        ? {
+            $or: [
+                { fullName: { $regex: q, $options: "i" } },
+                { userName: { $regex: q, $options: "i" } },
+                { email: { $regex: q, $options: "i" } },
+                { role: { $regex: q, $options: "i" } },
+            ],
+        }
+        : {};
+
+    console.time("[admin:getAllUsers] query");
+    const [users, total] = await Promise.all([
+        User.find(filter)
+            .select("fullName userName email role isActive isApproved createdAt")
+            .sort({ createdAt: -1 })
+            .skip((page - 1) * limit)
+            .limit(limit)
+            .lean(),
+        User.countDocuments(filter),
+    ]);
+    console.timeEnd("[admin:getAllUsers] query");
 
     return res.status(200).json(
-        new ApiResponse(200, users, "Users fetched successfully")
+        new ApiResponse(200, {
+            users,
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages: Math.max(1, Math.ceil(total / limit)),
+            },
+        }, "Users fetched successfully")
     );
 });
 
@@ -132,8 +164,15 @@ const getAllUsers = asyncHandler(async (req, res) => {
  * List students awaiting approval. Storekeeper + Admin.
  */
 const getPendingStudents = asyncHandler(async (req, res) => {
+    if (req.query.count === "true") {
+        const count = await User.countDocuments({ role: "Student", isApproved: false });
+        return res.status(200).json(
+            new ApiResponse(200, { count }, "Pending student count fetched successfully")
+        );
+    }
+
     const pending = await User.find({ role: "Student", isApproved: false })
-        .select("-password -refreshToken")
+        .select("fullName userName email role isActive isApproved student createdAt")
         .sort({ createdAt: 1 }); // oldest first — first come, first reviewed
 
     return res.status(200).json(

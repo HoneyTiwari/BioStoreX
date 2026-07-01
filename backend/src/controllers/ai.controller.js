@@ -17,6 +17,21 @@ import {
 const MAX_HISTORY_MESSAGES = 10;
 const MAX_MESSAGE_CHARS = 1200;
 const DAY_MS = 24 * 60 * 60 * 1000;
+const AI_ANALYTICS_CACHE_TTL_MS = 60 * 1000;
+const analyticsCache = new Map();
+
+const getCachedAnalytics = (key) => {
+    const cached = analyticsCache.get(key);
+    if (!cached || Date.now() - cached.createdAt > AI_ANALYTICS_CACHE_TTL_MS) {
+        analyticsCache.delete(key);
+        return null;
+    }
+    return cached.data;
+};
+
+const setCachedAnalytics = (key, data) => {
+    analyticsCache.set(key, { data, createdAt: Date.now() });
+};
 
 const getAiStatus = asyncHandler(async (req, res) => {
     return res.status(200).json(new ApiResponse(200, { configured: isAiConfigured() }, "AI status"));
@@ -168,6 +183,13 @@ const groupCount = (records) => {
 };
 
 const getInventoryInsights = asyncHandler(async (req, res) => {
+    const cacheKey = `inventory-insights:${isAiConfigured()}`;
+    const cached = getCachedAnalytics(cacheKey);
+    if (cached) {
+        return res.status(200).json(new ApiResponse(200, cached, "AI inventory insights generated"));
+    }
+
+    console.time("[ai:inventory-insights] compute");
     const items = await Item.find().select("name displayName category unitType totalQuantity minThreshold batches updatedAt").lean();
     const { requestsByItem, issuesByItem, requestCountByItem } = await getUsageMaps(90);
 
@@ -222,10 +244,19 @@ const getInventoryInsights = asyncHandler(async (req, res) => {
         });
     }
 
+    setCachedAnalytics(cacheKey, data);
+    console.timeEnd("[ai:inventory-insights] compute");
     return res.status(200).json(new ApiResponse(200, data, "AI inventory insights generated"));
 });
 
 const getStockPrediction = asyncHandler(async (req, res) => {
+    const cacheKey = `stock-prediction:${isAiConfigured()}`;
+    const cached = getCachedAnalytics(cacheKey);
+    if (cached) {
+        return res.status(200).json(new ApiResponse(200, cached, "Stock prediction generated"));
+    }
+
+    console.time("[ai:stock-prediction] compute");
     const items = await Item.find().select("name displayName category unitType totalQuantity minThreshold").lean();
     const { issuesByItem, previousIssuesByItem, requestsByItem } = await getUsageMaps(30);
 
@@ -271,10 +302,19 @@ const getStockPrediction = asyncHandler(async (req, res) => {
         });
     }
 
+    setCachedAnalytics(cacheKey, data);
+    console.timeEnd("[ai:stock-prediction] compute");
     return res.status(200).json(new ApiResponse(200, data, "Stock prediction generated"));
 });
 
 const getExpiryRisk = asyncHandler(async (req, res) => {
+    const cacheKey = `expiry-risk:${isAiConfigured()}`;
+    const cached = getCachedAnalytics(cacheKey);
+    if (cached) {
+        return res.status(200).json(new ApiResponse(200, cached, "Expiry risk generated"));
+    }
+
+    console.time("[ai:expiry-risk] compute");
     const items = await Item.find().select("name displayName category unitType totalQuantity batches").lean();
     const risks = [];
 
@@ -318,6 +358,8 @@ const getExpiryRisk = asyncHandler(async (req, res) => {
         });
     }
 
+    setCachedAnalytics(cacheKey, data);
+    console.timeEnd("[ai:expiry-risk] compute");
     return res.status(200).json(new ApiResponse(200, data, "Expiry risk generated"));
 });
 
