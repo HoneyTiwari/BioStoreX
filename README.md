@@ -93,6 +93,18 @@ REFRESH_TOKEN_SECRET=change-this-refresh-secret
 REFRESH_TOKEN_EXPIRY=10d
 ```
 
+Cloudinary for item image uploads:
+
+```env
+# Option 1: paste the single URL from Cloudinary
+CLOUDINARY_URL=cloudinary://API_KEY:API_SECRET@CLOUD_NAME
+
+# Option 2: set the three separate Render environment variables
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
+```
+
 Optional default admin:
 
 ```env
@@ -133,7 +145,15 @@ Backend:
 ```env
 NODE_ENV=production
 CORS_ORIGIN=https://bio-store-x.vercel.app
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
 ```
+
+On Render, add these in the backend service's Environment tab. The variable
+names must match exactly; `CLOUDINARY_NAME` is also accepted as an alias for
+`CLOUDINARY_CLOUD_NAME`, and `CLOUDINARY_URL` can be used instead of the three
+separate Cloudinary variables.
 
 If the login page says it cannot reach the server after deployment, confirm:
 - `VITE_API_BASE_URL` is set on the deployed frontend before building.
