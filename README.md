@@ -123,6 +123,21 @@ OPENAI_API_KEY=
 OPENAI_MODEL=gpt-4o-mini
 ```
 
+Password reset and notification emails support SMTP. SMTP takes priority when `SMTP_HOST` and `FROM_EMAIL` are set; otherwise the app uses SendGrid when configured.
+
+SMTP example (use the values supplied by your email provider):
+
+```env
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your_smtp_username
+SMTP_PASS=your_smtp_password
+FROM_EMAIL=your_verified_email@example.com
+```
+
+For implicit TLS, use port `465` and set `SMTP_SECURE=true`. For providers that do not require authentication, leave `SMTP_USER` and `SMTP_PASS` unset.
+
 Optional email via SendGrid:
 
 ```env
