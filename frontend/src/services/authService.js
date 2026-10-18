@@ -7,6 +7,7 @@ export const authService = {
     me: () => api.get("/user/me"),
     changePassword: (payload) => api.patch("/user/change-password", payload),
     updateProfile: (payload) => api.patch("/user/update-profile", payload),
-    forgotPassword: (payload) => api.post("/user/forgot-password", payload),
+    // Render's free backend may need 50+ seconds to wake after inactivity.
+    forgotPassword: (payload) => api.post("/user/forgot-password", payload, { timeout: 90000 }),
     resetPassword: (payload) => api.post("/user/reset-password", payload),
 };
