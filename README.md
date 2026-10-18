@@ -123,7 +123,7 @@ OPENAI_API_KEY=
 OPENAI_MODEL=gpt-4o-mini
 ```
 
-Password reset and notification emails support SMTP. SMTP takes priority when `SMTP_HOST` and `FROM_EMAIL` are set; otherwise the app uses SendGrid when configured.
+Password reset and notification emails support SendGrid and SMTP. When `SENDGRID_API_KEY` and `FROM_EMAIL` are set, the app uses SendGrid's HTTPS API. Otherwise, it uses SMTP when `SMTP_HOST` and `FROM_EMAIL` are set. On Render Free, use SendGrid because outbound SMTP ports are blocked.
 
 SMTP example (use the values supplied by your email provider):
 
